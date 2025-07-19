@@ -93,6 +93,7 @@ export function PCBuilder3D() {
     powerButton.rotation.x = Math.PI / 2;
     group.add(powerButton);
 
+    group.scale.set(0.8, 0.8, 0.8);
     return group;
   };
 
@@ -118,6 +119,7 @@ export function PCBuilder3D() {
     
     group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
 
+    group.scale.set(0.8, 0.8, 0.8);
     return group;
   }
   
@@ -138,6 +140,7 @@ export function PCBuilder3D() {
     }
     group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
 
+    group.scale.set(0.8, 0.8, 0.8);
     return group;
   }
   
@@ -155,6 +158,7 @@ export function PCBuilder3D() {
       group.add(wheel);
       
       group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+      group.scale.set(0.8, 0.8, 0.8);
       return group;
   }
   
@@ -175,6 +179,7 @@ export function PCBuilder3D() {
       group.add(topCover);
       
       group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+      group.scale.set(0.6, 0.6, 0.6);
       return group;
   }
   
@@ -186,6 +191,7 @@ export function PCBuilder3D() {
       group.add(strip);
       
       group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+      group.scale.set(0.5, 0.5, 0.5);
       return group;
   }
 
@@ -221,7 +227,7 @@ export function PCBuilder3D() {
     group.add(earpieceRight);
   
     group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
-    group.scale.set(0.8, 0.8, 0.8);
+    group.scale.set(0.7, 0.7, 0.7);
     return group;
   }
   
@@ -243,6 +249,7 @@ export function PCBuilder3D() {
     group.add(micHead);
 
     group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+    group.scale.set(0.6, 0.6, 0.6);
     return group;
   }
 
@@ -349,13 +356,13 @@ export function PCBuilder3D() {
 
       let newComponent: DraggableObject | null = null;
       switch(type) {
-        case 'monitor': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 1.75, dropPoint.z], createMonitor); break;
-        case 'keyboard': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.1, dropPoint.z], createKeyboard); break;
-        case 'mouse': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.1, dropPoint.z], createMouse); break;
-        case 'printer': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.75, dropPoint.z], createPrinter); break;
-        case 'power': newComponent = createComponent(name, type, info, [dropPoint.x, 0.2, dropPoint.z], createPowerStrip); break;
-        case 'headphones': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 1, dropPoint.z], createHeadphones); break;
-        case 'mic': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 1, dropPoint.z], createMicrophone); break;
+        case 'monitor': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 1.4, dropPoint.z], createMonitor); break;
+        case 'keyboard': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createKeyboard); break;
+        case 'mouse': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createMouse); break;
+        case 'printer': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.45, dropPoint.z], createPrinter); break;
+        case 'power': newComponent = createComponent(name, type, info, [dropPoint.x, 0.1, dropPoint.z], createPowerStrip); break;
+        case 'headphones': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.7, dropPoint.z], createHeadphones); break;
+        case 'mic': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createMicrophone); break;
       }
 
       if(newComponent) {
@@ -461,7 +468,7 @@ export function PCBuilder3D() {
     scene.add(deskGroup);
 
     const tower = createComponent('cpu-tower', 'central-unit', 'Central Unit', 
-      [-7, 2.5, 0],
+      [6, 2, -2],
       createTower
     );
     tower.userData.inScene = true;
