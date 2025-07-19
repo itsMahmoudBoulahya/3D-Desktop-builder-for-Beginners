@@ -38,6 +38,7 @@ export function PCBuilder3D() {
   const planeRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const intersectionRef = useRef(new THREE.Vector3());
   const offsetRef = useRef(new THREE.Vector3());
+  const isDraggingRef = useRef(false);
 
   const outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x00aaff, side: THREE.BackSide });
 
@@ -322,6 +323,7 @@ export function PCBuilder3D() {
       e.preventDefault();
       const componentData = e.dataTransfer?.getData('application/json');
       if (!componentData) return;
+      
       const {type, name, info} = JSON.parse(componentData);
 
       // Avoid adding duplicates
@@ -334,11 +336,13 @@ export function PCBuilder3D() {
         return;
       }
       
-      const rect = mountRef.current!.getBoundingClientRect();
+      if (!mountRef.current || !cameraRef.current) return;
+
+      const rect = mountRef.current.getBoundingClientRect();
       mouseRef.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouseRef.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
-      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current!);
+      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
       const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
       const dropPoint = new THREE.Vector3();
       raycasterRef.current.ray.intersectPlane(groundPlane, dropPoint);
@@ -476,6 +480,7 @@ export function PCBuilder3D() {
         raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
       
         if(selectedObjectForDragRef.current) {
+            isDraggingRef.current = true;
             if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
                 selectedObjectForDragRef.current.position.copy(intersectionRef.current.sub(offsetRef.current));
             }
@@ -496,8 +501,7 @@ export function PCBuilder3D() {
         
             if (hoveredObject) {
                 document.body.style.cursor = 'grab';
-                const obj = hoveredObject as DraggableObject;
-                setTooltip({ content: obj.userData.info, x: event.clientX, y: event.clientY });
+                setTooltip({ content: (hoveredObject as DraggableObject).userData.info, x: event.clientX, y: event.clientY });
             } else {
                 document.body.style.cursor = 'default';
                 setTooltip(null);
@@ -508,88 +512,83 @@ export function PCBuilder3D() {
     const onPointerDown = (event: PointerEvent) => {
       if(event.button !== 0 || !cameraRef.current) return;
       
+      isDraggingRef.current = false;
       raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
       const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene);
       const intersects = raycasterRef.current.intersectObjects(objectsToIntersect, true);
 
       if (intersects.length > 0) {
         let parentGroup = intersects[0].object.parent;
-          while(parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
-            parentGroup = parentGroup.parent;
-          }
+        while(parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
+          parentGroup = parentGroup.parent;
+        }
         
         if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
             const object = parentGroup as DraggableObject;
             if (object.name === 'cpu-tower') return;
             
-            // Only start drag if controls are not active
-            if(controlsRef.current?.state === -1) {
-              selectedObjectForDragRef.current = object;
-              document.body.style.cursor = 'grabbing';
-              controlsRef.current.enabled = false;
-              planeRef.current.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), object.position);
-              if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
-                offsetRef.current.copy(intersectionRef.current).sub(object.position);
-              }
+            controlsRef.current.enabled = false;
+            selectedObjectForDragRef.current = object;
+            document.body.style.cursor = 'grabbing';
+
+            planeRef.current.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), object.position);
+            if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
+              offsetRef.current.copy(intersectionRef.current).sub(object.position);
             }
         }
       }
     };
     
-    const onPointerUp = () => {
-      if (selectedObjectForDragRef.current) {
-        selectedObjectForDragRef.current = null;
-        document.body.style.cursor = 'default';
-        controlsRef.current.enabled = true;
-      }
-    };
-
-    const onClick = (event: MouseEvent) => {
-        if (selectedObjectForDragRef.current) return;
-        if (!cameraRef.current) return;
-
-        raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-        const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene);
-        const intersects = raycasterRef.current.intersectObjects(objectsToIntersect, true);
-
-        let clickedObject: DraggableObject | null = null;
-        if (intersects.length > 0) {
-            let parentGroup = intersects[0].object.parent;
-            while (parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
-                parentGroup = parentGroup.parent;
+    const onPointerUp = (event: PointerEvent) => {
+        if(isDraggingRef.current) {
+            isDraggingRef.current = false;
+        } else {
+            // This is a click, not a drag - handle selection
+            raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+            const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene);
+            const intersects = raycasterRef.current.intersectObjects(objectsToIntersect, true);
+    
+            let clickedObject: DraggableObject | null = null;
+            if (intersects.length > 0) {
+                let parentGroup = intersects[0].object.parent;
+                while (parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
+                    parentGroup = parentGroup.parent;
+                }
+                if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
+                    clickedObject = parentGroup as DraggableObject;
+                }
             }
-            if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
-                clickedObject = parentGroup as DraggableObject;
-            }
+
+            setSelectedComponent(prevSelected => {
+                if (prevSelected) {
+                    prevSelected.traverse(child => removeOutline(child));
+                }
+
+                if (clickedObject && (!prevSelected || prevSelected.userData.id !== clickedObject.userData.id)) {
+                    clickedObject.traverse(child => applyOutline(child));
+                    return clickedObject;
+                }
+                
+                return null; // Deselect if clicking the same object again or clicking empty space
+            });
         }
         
-        setSelectedComponent(prevSelected => {
-            if (prevSelected) {
-                prevSelected.traverse(child => removeOutline(child));
-            }
-
-            if (clickedObject && (!prevSelected || prevSelected.userData.id !== clickedObject.userData.id)) {
-                clickedObject.traverse(child => applyOutline(child));
-                return clickedObject;
-            }
-            
-            return null; // Deselect if clicking the same object again or clicking empty space
-        });
+        controlsRef.current.enabled = true;
+        selectedObjectForDragRef.current = null;
+        document.body.style.cursor = 'default';
     };
-    
+
     const currentMount = mountRef.current;
     handleResize();
     currentMount?.addEventListener('pointermove', onPointerMove);
     currentMount?.addEventListener('pointerdown', onPointerDown);
-    currentMount?.addEventListener('click', onClick);
-    window.addEventListener('pointerup', onPointerUp);
+    currentMount?.addEventListener('pointerup', onPointerUp);
     window.addEventListener('resize', handleResize);
 
     return () => {
       currentMount?.removeEventListener('pointermove', onPointerMove);
       currentMount?.removeEventListener('pointerdown', onPointerDown);
-      currentMount?.removeEventListener('click', onClick);
-      window.removeEventListener('pointerup', onPointerUp);
+      currentMount?.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('resize', handleResize);
       controlsRef.current?.dispose();
       if (rendererRef.current && mountRef.current) {
@@ -660,5 +659,3 @@ export function PCBuilder3D() {
     </div>
   );
 }
-
-    
