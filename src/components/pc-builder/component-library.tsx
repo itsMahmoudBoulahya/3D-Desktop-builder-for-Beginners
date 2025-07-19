@@ -14,7 +14,8 @@ const components = [
 
 export function ComponentLibrary() {
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, component: any) => {
-    e.dataTransfer.setData('application/json', JSON.stringify(component));
+    const { icon, ...serializableComponent } = component;
+    e.dataTransfer.setData('application/json', JSON.stringify(serializableComponent));
   };
 
   return (
