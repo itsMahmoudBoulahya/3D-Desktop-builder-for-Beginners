@@ -613,7 +613,6 @@ export function PCBuilder3D() {
     if(selectedComponent) {
         selectedComponent.traverse(child => removeOutline(child));
     }
-    setSelectedComponent(null);
   }
 
 
