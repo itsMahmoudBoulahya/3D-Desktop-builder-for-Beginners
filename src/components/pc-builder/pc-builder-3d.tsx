@@ -40,7 +40,7 @@ export function PCBuilder3D() {
   const outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x00aaff, side: THREE.BackSide });
 
   const applyOutline = (object: THREE.Object3D) => {
-    if (object instanceof THREE.Mesh) {
+    if (object instanceof THREE.Mesh && object.name !== 'outline') {
       const outlineMesh = object.clone();
       outlineMesh.material = outlineMaterial;
       outlineMesh.scale.multiplyScalar(1.05);
