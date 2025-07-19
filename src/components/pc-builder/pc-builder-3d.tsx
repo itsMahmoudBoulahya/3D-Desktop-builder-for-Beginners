@@ -418,6 +418,7 @@ export function PCBuilder3D() {
       createTower
     );
     tower.userData.inScene = true;
+    draggableObjectsRef.current.push(tower);
     
     createPort('usb1', 'usb', ['keyboard', 'mouse', 'printer', 'mic'], tower, [-0.7, 1.5, -2.3], 0x0077ff);
     createPort('usb2', 'usb', ['keyboard', 'mouse', 'printer', 'mic'], tower, [-0.4, 1.5, -2.3], 0x0077ff);
@@ -505,7 +506,7 @@ export function PCBuilder3D() {
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      if(event.button !== 0 || !cameraRef.current || controlsRef.current?.state !== -1) return;
+      if(event.button !== 0 || !cameraRef.current) return;
       
       raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
       const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene);
@@ -520,12 +521,16 @@ export function PCBuilder3D() {
         if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
             const object = parentGroup as DraggableObject;
             if (object.name === 'cpu-tower') return;
-            selectedObjectForDragRef.current = object;
-            document.body.style.cursor = 'grabbing';
-            controlsRef.current.enabled = false;
-            planeRef.current.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), object.position);
-            if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
-              offsetRef.current.copy(intersectionRef.current).sub(object.position);
+            
+            // Only start drag if controls are not active
+            if(controlsRef.current?.state === -1) {
+              selectedObjectForDragRef.current = object;
+              document.body.style.cursor = 'grabbing';
+              controlsRef.current.enabled = false;
+              planeRef.current.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), object.position);
+              if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
+                offsetRef.current.copy(intersectionRef.current).sub(object.position);
+              }
             }
         }
       }
@@ -547,38 +552,29 @@ export function PCBuilder3D() {
         const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene);
         const intersects = raycasterRef.current.intersectObjects(objectsToIntersect, true);
 
+        let clickedObject: DraggableObject | null = null;
         if (intersects.length > 0) {
             let parentGroup = intersects[0].object.parent;
             while (parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
                 parentGroup = parentGroup.parent;
             }
-
             if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
-                const clickedObject = parentGroup as DraggableObject;
-
-                setSelectedComponent(prevSelected => {
-                    // If something is already selected
-                    if (prevSelected) {
-                        prevSelected.traverse(child => removeOutline(child));
-                        // If the clicked object is the same as the selected one, deselect it
-                        if (prevSelected.userData.id === clickedObject.userData.id) {
-                            return null;
-                        }
-                    }
-                    // Otherwise, select the new object
-                    clickedObject.traverse(child => applyOutline(child));
-                    return clickedObject;
-                });
+                clickedObject = parentGroup as DraggableObject;
             }
-        } else {
-            // Clicked on empty space, so deselect
-            setSelectedComponent(prevSelected => {
-                if (prevSelected) {
-                    prevSelected.traverse(child => removeOutline(child));
-                }
-                return null;
-            });
         }
+        
+        setSelectedComponent(prevSelected => {
+            if (prevSelected) {
+                prevSelected.traverse(child => removeOutline(child));
+            }
+
+            if (clickedObject && (!prevSelected || prevSelected.userData.id !== clickedObject.userData.id)) {
+                clickedObject.traverse(child => applyOutline(child));
+                return clickedObject;
+            }
+            
+            return null; // Deselect if clicking the same object again or clicking empty space
+        });
     };
     
     const currentMount = mountRef.current;
@@ -598,7 +594,9 @@ export function PCBuilder3D() {
       controlsRef.current?.dispose();
       if (rendererRef.current && mountRef.current) {
         rendererRef.current.dispose();
-        mountRef.current.removeChild(rendererRef.current.domElement);
+        if(rendererRef.current.domElement.parentElement === mountRef.current) {
+           mountRef.current.removeChild(rendererRef.current.domElement);
+        }
       }
     };
   }, [createComponent, createPort, handleConnection, toast]);
