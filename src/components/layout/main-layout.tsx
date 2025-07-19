@@ -14,9 +14,10 @@ import {
   SidebarSeparator
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Cpu } from 'lucide-react';
+import { Cpu, HardDrive } from 'lucide-react';
 import { ConfigSuggester } from '@/components/pc-builder/config-suggester';
 import { PCBuilder3D } from '@/components/pc-builder/pc-builder-3d';
+import { ComponentLibrary } from '../pc-builder/component-library';
 
 export function MainLayout() {
   return (
@@ -32,16 +33,11 @@ export function MainLayout() {
         </SidebarHeader>
         <SidebarContent className="p-0">
           <SidebarGroup>
-            <SidebarGroupLabel>Instructions</SidebarGroupLabel>
-            <div className="px-2 text-sm text-muted-foreground flex flex-col gap-1">
-              <p>Drag components around the scene.</p>
-              <p>Click a component to select it, then click 'Connect'.</p>
-              <p>Hover on components to see info.</p>
-              <div className='mt-2 space-y-1'>
-                <div className="flex items-center gap-2"><span className="h-3 w-3 inline-block rounded-full bg-green-500"></span>Correct Connection</div>
-                <div className="flex items-center gap-2"><span className="h-3 w-3 inline-block rounded-full bg-red-500"></span>Incorrect Connection</div>
-              </div>
-            </div>
+            <SidebarGroupLabel className='flex items-center gap-2'>
+              <HardDrive className='h-4 w-4' />
+              Component Library
+            </SidebarGroupLabel>
+            <ComponentLibrary />
           </SidebarGroup>
           <SidebarSeparator />
           <ConfigSuggester />

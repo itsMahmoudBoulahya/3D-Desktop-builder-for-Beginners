@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from '@react-three/drei';
 import { Button } from '../ui/button';
 import { ConnectionDialog } from './connection-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +26,7 @@ export function PCBuilder3D() {
   const sceneRef = useRef(new THREE.Scene());
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const controlsRef = useRef<any>(null);
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
   
@@ -65,7 +67,7 @@ export function PCBuilder3D() {
   ): DraggableObject => {
     const group = createGeometry();
     group.name = name;
-    group.userData = { id: name, type, info };
+    group.userData = { id: name, type, info, inScene: true };
     group.position.set(...position);
     sceneRef.current.add(group);
     
@@ -272,7 +274,6 @@ export function PCBuilder3D() {
 
     const isCorrect = port.userData.accepts.includes(object.userData.type);
     
-    // Disconnect if already connected to another port
     if (connectionsRef.current.has(object.name)) {
         const existing = connectionsRef.current.get(object.name)!;
         sceneRef.current.remove(existing.line);
@@ -300,20 +301,12 @@ export function PCBuilder3D() {
     
     if (isCorrect) {
         toast({ title: "Connection Successful!", description: `${object.userData.type} connected to ${port.userData.type} port.` });
-        const direction = new THREE.Vector3().subVectors(object.position, endPoint).normalize();
-        const newPosition = endPoint.clone().add(direction.multiplyScalar(CONNECTION_DISTANCE_THRESHOLD * 0.9));
-        
-        const boundingBox = new THREE.Box3().setFromObject(object);
-        const height = boundingBox.max.y - boundingBox.min.y;
-        newPosition.y = height / 2;
-        // object.position.copy(newPosition); // Temporarily disable snapping
     } else {
         setWrongConnectionAlert({
             open: true,
             portType: port.userData.type.toUpperCase(),
             deviceType: object.userData.type.toUpperCase(),
         });
-        // Don't keep the wrong connection line
         setTimeout(() => {
             sceneRef.current.remove(line);
             connectionsRef.current.delete(object.name);
@@ -321,6 +314,63 @@ export function PCBuilder3D() {
         }, 500);
     }
   }, [toast]);
+  
+  // Drag and drop from sidebar
+  useEffect(() => {
+    const handleDragOver = (e: DragEvent) => e.preventDefault();
+    
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      const componentType = e.dataTransfer?.getData('application/json');
+      if (!componentType) return;
+      const {type, name, info} = JSON.parse(componentType);
+
+      // Avoid adding duplicates
+      if (draggableObjectsRef.current.find(obj => obj.name === name)) {
+        toast({
+          title: 'Component already in scene',
+          description: `The ${info.split(': ')[1]} is already in the scene.`,
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      const rect = mountRef.current!.getBoundingClientRect();
+      mouseRef.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current!);
+      const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const dropPoint = new THREE.Vector3();
+      raycasterRef.current.ray.intersectPlane(groundPlane, dropPoint);
+
+
+      let newComponent: DraggableObject | null = null;
+      switch(type) {
+        case 'monitor': newComponent = createComponent(name, type, info, [dropPoint.x, 2.9, dropPoint.z], createMonitor); break;
+        case 'keyboard': newComponent = createComponent(name, type, info, [dropPoint.x, 0.1, dropPoint.z], createKeyboard); break;
+        case 'mouse': newComponent = createComponent(name, type, info, [dropPoint.x, 0.1, dropPoint.z], createMouse); break;
+        case 'printer': newComponent = createComponent(name, type, info, [dropPoint.x, 0.75, dropPoint.z], createPrinter); break;
+        case 'power': newComponent = createComponent(name, type, info, [dropPoint.x, 0.2, dropPoint.z], createPowerStrip); break;
+        case 'headphones': newComponent = createComponent(name, type, info, [dropPoint.x, 1, dropPoint.z], createHeadphones); break;
+        case 'mic': newComponent = createComponent(name, type, info, [dropPoint.x, 1, dropPoint.z], createMicrophone); break;
+      }
+
+      if(newComponent) {
+        draggableObjectsRef.current.push(newComponent);
+      }
+    };
+    
+    const mountEl = mountRef.current;
+    mountEl?.addEventListener('dragover', handleDragOver);
+    mountEl?.addEventListener('drop', handleDrop);
+
+    return () => {
+      mountEl?.removeEventListener('dragover', handleDragOver);
+      mountEl?.removeEventListener('drop', handleDrop);
+    }
+
+  }, [createComponent, toast]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -345,6 +395,9 @@ export function PCBuilder3D() {
     rendererRef.current = renderer;
     mountRef.current?.appendChild(renderer.domElement);
 
+    controlsRef.current = new OrbitControls(camera, renderer.domElement);
+    controlsRef.current.enableDamping = true;
+
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambientLight);
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -354,7 +407,7 @@ export function PCBuilder3D() {
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(40, 40),
-      new THREE.MeshStandardMaterial({ color: 0xcccccc })
+      new THREE.MeshStandardMaterial({ color: 0xcccccc, name: 'ground' })
     );
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
@@ -364,8 +417,8 @@ export function PCBuilder3D() {
       [0, 2.5, 0],
       createTower
     );
+    tower.userData.inScene = true;
     
-    // Back ports
     createPort('usb1', 'usb', ['keyboard', 'mouse', 'printer', 'mic'], tower, [-0.7, 1.5, -2.3], 0x0077ff);
     createPort('usb2', 'usb', ['keyboard', 'mouse', 'printer', 'mic'], tower, [-0.4, 1.5, -2.3], 0x0077ff);
     createPort('hdmi1', 'hdmi', ['monitor'], tower, [0.2, 1.5, -2.3], 0xff8c00);
@@ -373,21 +426,15 @@ export function PCBuilder3D() {
     createPort('audio-out1', 'audio-out', ['headphones'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
     createPort('mic-in1', 'mic-in', ['mic'], tower, [-0.4, -0.5, -2.3], 0xff69b4);
 
-    createComponent('monitor', 'monitor', 'Output Device: Monitor', [-7, 2.9, -2], createMonitor);
-    createComponent('keyboard', 'keyboard', 'Input Device: Keyboard', [7, 0.1, 2.5], createKeyboard);
-    createComponent('mouse', 'mouse', 'Input Device: Mouse', [9, 0.1, 2.5], createMouse);
-    createComponent('printer', 'printer', 'Output Device: Printer', [-8, 0.75, 4], createPrinter);
-    createComponent('power', 'power', 'Power Source', [7, 0.2, 7], createPowerStrip);
-    createComponent('headphones', 'headphones', 'Output Device: Headphones', [-10, 1, 6], createHeadphones);
-    createComponent('mic', 'mic', 'Input Device: Microphone', [10, 1, 6], createMicrophone);
-
     const animate = () => {
       if (!rendererRef.current || !cameraRef.current) return;
       requestAnimationFrame(animate);
 
+      controlsRef.current?.update();
+
       connectionsRef.current.forEach((conn, objectId) => {
           const obj = scene.getObjectByName(objectId) as DraggableObject;
-          const port = scene.getObjectByName(conn.toPortId) as PortObject;
+          const port = portsRef.current.find(p => p.name === conn.toPortId) as PortObject;
           if (obj && port && conn.line.geometry.attributes.position) {
               const positions = conn.line.geometry.attributes.position.array as Float32Array;
               const start = new THREE.Vector3();
@@ -428,31 +475,41 @@ export function PCBuilder3D() {
       raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
       
       if(selectedObjectForDragRef.current) {
-        raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current);
-        selectedObjectForDragRef.current.position.copy(intersectionRef.current.sub(offsetRef.current));
+        if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
+          selectedObjectForDragRef.current.position.copy(intersectionRef.current.sub(offsetRef.current));
+        }
       } else {
-        const intersects = raycasterRef.current.intersectObjects(draggableObjectsRef.current.flatMap(o => o.children), true);
+        const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene).flatMap(o => o.children);
+        const intersects = raycasterRef.current.intersectObjects(objectsToIntersect, true);
+        
+        let hoveredObject = null;
         if (intersects.length > 0) {
-          let parentGroup = intersects[0].object.parent;
-          while(parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
-            parentGroup = parentGroup.parent;
-          }
-          if(parentGroup && parentGroup !== selectedComponent) {
+            let parentGroup = intersects[0].object.parent;
+            while(parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
+              parentGroup = parentGroup.parent;
+            }
+            if (parentGroup) {
+                hoveredObject = parentGroup;
+            }
+        }
+        
+        if (hoveredObject) {
             document.body.style.cursor = 'grab';
-            const obj = parentGroup as DraggableObject;
+            const obj = hoveredObject as DraggableObject;
             setTooltip({ content: obj.userData.info, x: event.clientX, y: event.clientY });
-          }
         } else {
-          document.body.style.cursor = 'default';
-          setTooltip(null);
+            document.body.style.cursor = 'default';
+            setTooltip(null);
         }
       }
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      if(event.button !== 0 || !cameraRef.current) return;
+      if(event.button !== 0 || !cameraRef.current || controlsRef.current?.state !== -1) return;
+      
       raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-      const intersects = raycasterRef.current.intersectObjects(draggableObjectsRef.current.flatMap(o => o.children), true);
+      const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene);
+      const intersects = raycasterRef.current.intersectObjects(objectsToIntersect, true);
 
       if (intersects.length > 0) {
         let parentGroup = intersects[0].object.parent;
@@ -464,6 +521,7 @@ export function PCBuilder3D() {
             const object = parentGroup as DraggableObject;
             selectedObjectForDragRef.current = object;
             document.body.style.cursor = 'grabbing';
+            controlsRef.current.enabled = false;
             planeRef.current.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), object.position);
             if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
               offsetRef.current.copy(intersectionRef.current).sub(object.position);
@@ -473,8 +531,11 @@ export function PCBuilder3D() {
     };
     
     const onPointerUp = () => {
-      selectedObjectForDragRef.current = null;
-      document.body.style.cursor = 'default';
+      if (selectedObjectForDragRef.current) {
+        selectedObjectForDragRef.current = null;
+        document.body.style.cursor = 'default';
+        controlsRef.current.enabled = true;
+      }
     };
 
     const onClick = (event: MouseEvent) => {
@@ -482,7 +543,8 @@ export function PCBuilder3D() {
         if (!cameraRef.current) return;
 
         raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-        const intersects = raycasterRef.current.intersectObjects(draggableObjectsRef.current, true);
+        const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene);
+        const intersects = raycasterRef.current.intersectObjects(objectsToIntersect, true);
 
         if (intersects.length > 0) {
             let parentGroup = intersects[0].object.parent;
@@ -492,8 +554,8 @@ export function PCBuilder3D() {
 
             if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
                 const object = parentGroup as DraggableObject;
+                
                 if(selectedComponent && selectedComponent.userData.id === object.userData.id) {
-                    // deselect
                     selectedComponent.traverse(child => removeOutline(child));
                     setSelectedComponent(null);
                 } else {
@@ -505,9 +567,12 @@ export function PCBuilder3D() {
                 }
             }
         } else {
-            if (selectedComponent) {
-                selectedComponent.traverse(child => removeOutline(child));
-                setSelectedComponent(null);
+            const groundIntersect = raycasterRef.current.intersectObjects([scene.getObjectByName('ground')!]);
+            if(groundIntersect.length > 0) {
+              if (selectedComponent) {
+                  selectedComponent.traverse(child => removeOutline(child));
+                  setSelectedComponent(null);
+              }
             }
         }
     };
@@ -526,12 +591,13 @@ export function PCBuilder3D() {
       currentMount?.removeEventListener('click', onClick);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('resize', handleResize);
+      controlsRef.current?.dispose();
       if (rendererRef.current && mountRef.current) {
         rendererRef.current.dispose();
         mountRef.current.removeChild(rendererRef.current.domElement);
       }
     };
-  }, [createComponent, createPort, handleConnection]);
+  }, [createComponent, createPort, handleConnection, toast]);
 
   const onConnectClick = () => {
     setConnectionDialogOpen(true);
