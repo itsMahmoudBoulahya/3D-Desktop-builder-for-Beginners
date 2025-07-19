@@ -36,7 +36,7 @@ export function PCBuilder3D() {
   const connectionsRef = useRef<Map<string, { line: THREE.Line, toPortId: string }>>(new Map());
   
   const selectedObjectForDragRef = useRef<DraggableObject | null>(null);
-  const planeRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), -DESK_LEVEL));
+  const planeRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const intersectionRef = useRef(new THREE.Vector3());
   const offsetRef = useRef(new THREE.Vector3());
   const isDraggingRef = useRef(false);
@@ -468,7 +468,7 @@ export function PCBuilder3D() {
     scene.add(deskGroup);
 
     const tower = createComponent('cpu-tower', 'central-unit', 'Central Unit', 
-      [6, 2, -2],
+      [-3, DESK_LEVEL + 2.0, -2],
       createTower
     );
     tower.userData.inScene = true;
@@ -575,11 +575,12 @@ export function PCBuilder3D() {
         
         if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
             const object = parentGroup as DraggableObject;
-            if (object.name === 'cpu-tower') {
-                planeRef.current.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0));
-            } else {
-                 planeRef.current.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, DESK_LEVEL, 0));
-            }
+            
+            // Set the drag plane at the object's current y position
+            planeRef.current.setFromNormalAndCoplanarPoint(
+              new THREE.Vector3(0, 1, 0),
+              new THREE.Vector3(0, intersects[0].point.y, 0)
+            );
 
             controlsRef.current.enabled = false;
             selectedObjectForDragRef.current = object;
