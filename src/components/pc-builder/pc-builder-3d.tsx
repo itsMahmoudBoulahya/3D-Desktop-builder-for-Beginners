@@ -474,36 +474,36 @@ export function PCBuilder3D() {
         mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       
-      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+        raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
       
-      if(selectedObjectForDragRef.current) {
-        if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
-          selectedObjectForDragRef.current.position.copy(intersectionRef.current.sub(offsetRef.current));
-        }
-      } else {
-        const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene).flatMap(o => o.children);
-        const intersects = raycasterRef.current.intersectObjects(objectsToIntersect, true);
-        
-        let hoveredObject = null;
-        if (intersects.length > 0) {
-            let parentGroup = intersects[0].object.parent;
-            while(parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
-              parentGroup = parentGroup.parent;
+        if(selectedObjectForDragRef.current) {
+            if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
+                selectedObjectForDragRef.current.position.copy(intersectionRef.current.sub(offsetRef.current));
             }
-            if (parentGroup) {
-                hoveredObject = parentGroup;
-            }
-        }
-        
-        if (hoveredObject) {
-            document.body.style.cursor = 'grab';
-            const obj = hoveredObject as DraggableObject;
-            setTooltip({ content: obj.userData.info, x: event.clientX, y: event.clientY });
         } else {
-            document.body.style.cursor = 'default';
-            setTooltip(null);
+            const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene).flatMap(o => o.children);
+            const intersects = raycasterRef.current.intersectObjects(objectsToIntersect, true);
+        
+            let hoveredObject = null;
+            if (intersects.length > 0) {
+                let parentGroup = intersects[0].object.parent;
+                while(parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
+                    parentGroup = parentGroup.parent;
+                }
+                if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
+                    hoveredObject = parentGroup;
+                }
+            }
+        
+            if (hoveredObject) {
+                document.body.style.cursor = 'grab';
+                const obj = hoveredObject as DraggableObject;
+                setTooltip({ content: obj.userData.info, x: event.clientX, y: event.clientY });
+            } else {
+                document.body.style.cursor = 'default';
+                setTooltip(null);
+            }
         }
-      }
     };
 
     const onPointerDown = (event: PointerEvent) => {
