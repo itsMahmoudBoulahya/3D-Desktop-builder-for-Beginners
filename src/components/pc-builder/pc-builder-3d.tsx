@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Button } from '../ui/button';
 import { ConnectionDialog } from './connection-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -72,7 +72,8 @@ export function PCBuilder3D() {
     sceneRef.current.add(group);
     
     if (name !== 'cpu-tower') {
-      draggableObjectsRef.current.push(group);
+      // This was causing duplicates when dragging from sidebar
+      // draggableObjectsRef.current.push(group);
     }
     return group;
   }, []);
@@ -321,9 +322,9 @@ export function PCBuilder3D() {
     
     const handleDrop = (e: DragEvent) => {
       e.preventDefault();
-      const componentType = e.dataTransfer?.getData('application/json');
-      if (!componentType) return;
-      const {type, name, info} = JSON.parse(componentType);
+      const componentData = e.dataTransfer?.getData('application/json');
+      if (!componentData) return;
+      const {type, name, info} = JSON.parse(componentData);
 
       // Avoid adding duplicates
       if (draggableObjectsRef.current.find(obj => obj.name === name)) {
@@ -409,6 +410,7 @@ export function PCBuilder3D() {
       new THREE.PlaneGeometry(40, 40),
       new THREE.MeshStandardMaterial({ color: 0xcccccc, name: 'ground' })
     );
+    ground.name = 'ground';
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
@@ -567,7 +569,7 @@ export function PCBuilder3D() {
                 }
             }
         } else {
-            const groundIntersect = raycasterRef.current.intersectObjects([scene.getObjectByName('ground')!]);
+            const groundIntersect = raycasterRef.current.intersectObjects(scene.getObjectsByProperty('name', 'ground'));
             if(groundIntersect.length > 0) {
               if (selectedComponent) {
                   selectedComponent.traverse(child => removeOutline(child));
