@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 
-type DraggableObject = THREE.Mesh;
+type DraggableObject = THREE.Group;
 type PortObject = THREE.Mesh;
 
 const CONNECTION_DISTANCE_THRESHOLD = 2.0;
@@ -31,20 +31,142 @@ export function PCBuilder3D() {
     name: string,
     type: string,
     info: string,
-    geometry: THREE.BufferGeometry,
-    material: THREE.Material,
-    position: [number, number, number]
+    position: [number, number, number],
+    createGeometry: () => THREE.Group
   ): DraggableObject => {
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.name = name;
-    mesh.userData = { id: name, type, info };
-    mesh.position.set(...position);
-    sceneRef.current.add(mesh);
+    const group = createGeometry();
+    group.name = name;
+    group.userData = { id: name, type, info, height: 5 }; // Assuming a generic height for positioning
+    group.position.set(...position);
+    sceneRef.current.add(group);
+    
+    // Make children of the group draggable as one unit
+    const draggableMeshes: THREE.Object3D[] = [];
+    group.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+            draggableMeshes.push(child);
+        }
+    });
+
     if (name !== 'cpu-tower') {
-      draggableObjectsRef.current.push(mesh);
+      draggableObjectsRef.current.push(group);
     }
-    return mesh;
+    return group;
   }, []);
+
+  const createTower = () => {
+    const group = new THREE.Group();
+    const caseMaterial = new THREE.MeshStandardMaterial({ color: 0x333842 });
+    const caseMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 4.5), caseMaterial);
+    caseMesh.castShadow = true;
+    caseMesh.receiveShadow = true;
+    group.add(caseMesh);
+
+    // Add some details
+    const frontPanel = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 0.1), new THREE.MeshStandardMaterial({ color: 0x444952 }));
+    frontPanel.position.set(0, 2, 2.26);
+    group.add(frontPanel);
+    
+    const powerButton = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 16), new THREE.MeshStandardMaterial({ color: 0x00aaff }));
+    powerButton.position.set(0, 2.35, 2.26);
+    powerButton.rotation.x = Math.PI / 2;
+    group.add(powerButton);
+
+    return group;
+  };
+
+  const createMonitor = () => {
+    const group = new THREE.Group();
+    const screenMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.2 });
+    const frameMaterial = new THREE.MeshStandardMaterial({ color: 0x555b6e });
+
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(4.3, 3.3, 0.1), screenMaterial);
+    screen.position.z = -0.1;
+    group.add(screen);
+    
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(4.5, 3.5, 0.3), frameMaterial);
+    group.add(frame);
+    
+    const standNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 16), frameMaterial);
+    standNeck.position.y = -2.25;
+    group.add(standNeck);
+
+    const standBase = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.2, 0.2, 32), frameMaterial);
+    standBase.position.y = -2.8;
+    group.add(standBase);
+    
+    group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+
+    return group;
+  }
+  
+  const createKeyboard = () => {
+    const group = new THREE.Group();
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x555b6e });
+    const keyMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+
+    const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.2, 1.2), bodyMaterial);
+    group.add(body);
+
+    for(let i = 0; i < 6; i++) {
+        for (let j = 0; j < 15; j++) {
+            const key = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.1, 0.18), keyMaterial);
+            key.position.set(-1.6 + j * 0.22, 0.15, -0.45 + i * 0.18);
+            group.add(key);
+        }
+    }
+    group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+
+    return group;
+  }
+  
+  const createMouse = () => {
+      const group = new THREE.Group();
+      const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x555b6e });
+      const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 1), bodyMaterial);
+      group.add(body);
+      
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.2, 16), wheelMaterial);
+      wheel.rotation.z = Math.PI / 2;
+      wheel.position.set(0, 0.15, -0.2);
+      group.add(wheel);
+      
+      group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+      return group;
+  }
+  
+  const createPrinter = () => {
+      const group = new THREE.Group();
+      const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+      const detailMaterial = new THREE.MeshStandardMaterial({ color: 0xbbbbbb });
+
+      const mainBody = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 2.5), bodyMaterial);
+      group.add(mainBody);
+      
+      const paperTray = new THREE.Mesh(new THREE.BoxGeometry(2, 0.2, 1.5), detailMaterial);
+      paperTray.position.set(0, -0.65, 1);
+      group.add(paperTray);
+      
+      const topCover = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.4, 2), detailMaterial);
+      topCover.position.y = 0.55;
+      group.add(topCover);
+      
+      group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+      return group;
+  }
+  
+  const createPowerStrip = () => {
+      const group = new THREE.Group();
+      const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
+      
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(2, 0.4, 0.8), bodyMaterial);
+      group.add(strip);
+      
+      group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+      return group;
+  }
 
   const createPort = useCallback((
     name: string,
@@ -90,7 +212,10 @@ export function PCBuilder3D() {
     if (isCorrect) {
         const direction = new THREE.Vector3().subVectors(object.position, endPoint).normalize();
         const newPosition = endPoint.clone().add(direction.multiplyScalar(CONNECTION_DISTANCE_THRESHOLD * 0.75));
-        newPosition.y = object.geometry.parameters.height / 2;
+        
+        const boundingBox = new THREE.Box3().setFromObject(object);
+        const height = boundingBox.max.y - boundingBox.min.y;
+        newPosition.y = height / 2;
         object.position.copy(newPosition);
     }
   }, []);
@@ -98,6 +223,14 @@ export function PCBuilder3D() {
   useEffect(() => {
     const scene = sceneRef.current;
     scene.background = new THREE.Color(0xE0E0E0);
+    const darkBackground = new THREE.Color(0x282c34);
+
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        scene.background = darkBackground;
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+        scene.background = event.matches ? darkBackground : new THREE.Color(0xE0E0E0);
+    });
 
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
     camera.position.set(0, 10, 15);
@@ -126,28 +259,23 @@ export function PCBuilder3D() {
     scene.add(ground);
 
     const tower = createComponent('cpu-tower', 'central-unit', 'Central Unit', 
-      new THREE.BoxGeometry(2, 5, 4.5), 
-      new THREE.MeshStandardMaterial({ color: 0x333842 }), 
-      [0, 2.5, 0]
+      [0, 2.5, 0],
+      createTower
     );
-    tower.castShadow = true;
     
     createPort('usb1', 'usb', ['keyboard', 'mouse', 'printer'], tower, [-0.7, 0.5, 2.3], 0x0077ff);
     createPort('usb2', 'usb', ['keyboard', 'mouse', 'printer'], tower, [-0.4, 0.5, 2.3], 0x0077ff);
     createPort('hdmi1', 'hdmi', ['monitor'], tower, [0.2, 0, 2.3], 0xff8c00);
     createPort('power1', 'power', ['power'], tower, [0.7, -2, 2.3], 0xdddd00);
 
-    const peripheralMaterial = new THREE.MeshStandardMaterial({ color: 0x555b6e });
-    const monitor = createComponent('monitor', 'output', 'Output Device: Monitor', new THREE.BoxGeometry(4.5, 3.5, 0.3), peripheralMaterial, [-7, 1.75, -2]);
-    const keyboard = createComponent('keyboard', 'input', 'Input Device: Keyboard', new THREE.BoxGeometry(3.5, 0.2, 1.2), peripheralMaterial, [7, 0.1, 2.5]);
-    const mouse = createComponent('mouse', 'input', 'Input Device: Mouse', new THREE.BoxGeometry(0.6, 0.2, 1), peripheralMaterial, [9, 0.1, 2.5]);
-    const printer = createComponent('printer', 'output', 'Output Device: Printer', new THREE.BoxGeometry(3, 1.5, 2.5), peripheralMaterial, [-8, 0.75, 4]);
-    const power = createComponent('power', 'power', 'Power Source', new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshStandardMaterial({ color: 0x222222 }), [7, 0.3, 7]);
+    createComponent('monitor', 'monitor', 'Output Device: Monitor', [-7, 2.9, -2], createMonitor);
+    createComponent('keyboard', 'keyboard', 'Input Device: Keyboard', [7, 0.1, 2.5], createKeyboard);
+    createComponent('mouse', 'mouse', 'Input Device: Mouse', [9, 0.1, 2.5], createMouse);
+    createComponent('printer', 'printer', 'Output Device: Printer', [-8, 0.75, 4], createPrinter);
+    createComponent('power', 'power', 'Power Source', [7, 0.2, 7], createPowerStrip);
     
-    [monitor, keyboard, mouse, printer, power].forEach(p => p.castShadow = true);
-
     const animate = () => {
-      if (!rendererRef.current) return;
+      if (!rendererRef.current || !cameraRef.current) return;
       requestAnimationFrame(animate);
 
       connectionsRef.current.forEach((conn, objectId) => {
@@ -156,7 +284,10 @@ export function PCBuilder3D() {
           if (obj && port && conn.line.geometry.attributes.position) {
               const positions = conn.line.geometry.attributes.position.array as Float32Array;
               const start = obj.position.clone();
-              start.y = obj.geometry.parameters.height / 2;
+              const boundingBox = new THREE.Box3().setFromObject(obj);
+              const height = boundingBox.max.y - boundingBox.min.y;
+              start.y = obj.position.y - height / 2 + 0.1;
+
               const end = port.getWorldPosition(new THREE.Vector3());
               positions[0] = start.x;
               positions[1] = start.y;
@@ -168,36 +299,41 @@ export function PCBuilder3D() {
           }
       });
       
-      rendererRef.current.render(scene, camera);
+      rendererRef.current.render(scene, cameraRef.current);
     };
     animate();
 
     const handleResize = () => {
-      if (!mountRef.current) return;
+      if (!mountRef.current || !cameraRef.current || !rendererRef.current) return;
       const { clientWidth, clientHeight } = mountRef.current;
-      camera.aspect = clientWidth / clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(clientWidth, clientHeight);
+      cameraRef.current.aspect = clientWidth / clientHeight;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(clientWidth, clientHeight);
     };
     
     const onPointerMove = (event: PointerEvent) => {
-      if (!mountRef.current) return;
-      const { clientWidth, clientHeight } = mountRef.current;
-      const { left, top } = mountRef.current.getBoundingClientRect();
-      mouseRef.current.x = ((event.clientX - left) / clientWidth) * 2 - 1;
-      mouseRef.current.y = -((event.clientY - top) / clientHeight) * 2 + 1;
+        if (!mountRef.current || !cameraRef.current) return;
+        const rect = mountRef.current.getBoundingClientRect();
+        mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       
-      raycasterRef.current.setFromCamera(mouseRef.current, camera);
+      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
       
       if(selectedObjectRef.current) {
         raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current);
         selectedObjectRef.current.position.copy(intersectionRef.current.sub(offsetRef.current));
       } else {
-        const intersects = raycasterRef.current.intersectObjects(draggableObjectsRef.current);
+        const intersects = raycasterRef.current.intersectObjects(draggableObjectsRef.current.flatMap(o => o.children));
         if (intersects.length > 0) {
           document.body.style.cursor = 'grab';
-          const obj = intersects[0].object as DraggableObject;
-          setTooltip({ content: obj.userData.info, x: event.clientX, y: event.clientY });
+          let parentGroup = intersects[0].object.parent;
+          while(parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
+            parentGroup = parentGroup.parent;
+          }
+          if(parentGroup) {
+            const obj = parentGroup as DraggableObject;
+            setTooltip({ content: obj.userData.info, x: event.clientX, y: event.clientY });
+          }
         } else {
           document.body.style.cursor = 'default';
           setTooltip(null);
@@ -206,16 +342,24 @@ export function PCBuilder3D() {
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      if(event.button !== 0) return;
-      raycasterRef.current.setFromCamera(mouseRef.current, camera);
-      const intersects = raycasterRef.current.intersectObjects(draggableObjectsRef.current);
+      if(event.button !== 0 || !cameraRef.current) return;
+      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+      const intersects = raycasterRef.current.intersectObjects(draggableObjectsRef.current.flatMap(o => o.children));
+
       if (intersects.length > 0) {
-        const object = intersects[0].object as DraggableObject;
-        selectedObjectRef.current = object;
-        document.body.style.cursor = 'grabbing';
-        planeRef.current.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), object.position);
-        if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
-          offsetRef.current.copy(intersectionRef.current).sub(object.position);
+        let parentGroup = intersects[0].object.parent;
+          while(parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
+            parentGroup = parentGroup.parent;
+          }
+        
+        if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
+            const object = parentGroup as DraggableObject;
+            selectedObjectRef.current = object;
+            document.body.style.cursor = 'grabbing';
+            planeRef.current.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), object.position);
+            if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
+              offsetRef.current.copy(intersectionRef.current).sub(object.position);
+            }
         }
       }
     };
