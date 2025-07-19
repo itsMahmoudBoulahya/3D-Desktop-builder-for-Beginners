@@ -12,6 +12,7 @@ export type DraggableObject = THREE.Group;
 export type PortObject = THREE.Mesh;
 
 const CONNECTION_DISTANCE_THRESHOLD = 2.0;
+const DESK_LEVEL = 3.5;
 
 export function PCBuilder3D() {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -35,7 +36,7 @@ export function PCBuilder3D() {
   const connectionsRef = useRef<Map<string, { line: THREE.Line, toPortId: string }>>(new Map());
   
   const selectedObjectForDragRef = useRef<DraggableObject | null>(null);
-  const planeRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
+  const planeRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), -DESK_LEVEL));
   const intersectionRef = useRef(new THREE.Vector3());
   const offsetRef = useRef(new THREE.Vector3());
   const isDraggingRef = useRef(false);
@@ -72,8 +73,6 @@ export function PCBuilder3D() {
     group.position.set(...position);
     sceneRef.current.add(group);
     
-    if (name !== 'cpu-tower') {
-    }
     return group;
   }, []);
 
@@ -343,20 +342,20 @@ export function PCBuilder3D() {
       mouseRef.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
       raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-      const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const deskPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -DESK_LEVEL);
       const dropPoint = new THREE.Vector3();
-      raycasterRef.current.ray.intersectPlane(groundPlane, dropPoint);
+      raycasterRef.current.ray.intersectPlane(deskPlane, dropPoint);
 
 
       let newComponent: DraggableObject | null = null;
       switch(type) {
-        case 'monitor': newComponent = createComponent(name, type, info, [dropPoint.x, 2.9, dropPoint.z], createMonitor); break;
-        case 'keyboard': newComponent = createComponent(name, type, info, [dropPoint.x, 0.1, dropPoint.z], createKeyboard); break;
-        case 'mouse': newComponent = createComponent(name, type, info, [dropPoint.x, 0.1, dropPoint.z], createMouse); break;
-        case 'printer': newComponent = createComponent(name, type, info, [dropPoint.x, 0.75, dropPoint.z], createPrinter); break;
+        case 'monitor': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 1.75, dropPoint.z], createMonitor); break;
+        case 'keyboard': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.1, dropPoint.z], createKeyboard); break;
+        case 'mouse': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.1, dropPoint.z], createMouse); break;
+        case 'printer': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.75, dropPoint.z], createPrinter); break;
         case 'power': newComponent = createComponent(name, type, info, [dropPoint.x, 0.2, dropPoint.z], createPowerStrip); break;
-        case 'headphones': newComponent = createComponent(name, type, info, [dropPoint.x, 1, dropPoint.z], createHeadphones); break;
-        case 'mic': newComponent = createComponent(name, type, info, [dropPoint.x, 1, dropPoint.z], createMicrophone); break;
+        case 'headphones': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 1, dropPoint.z], createHeadphones); break;
+        case 'mic': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 1, dropPoint.z], createMicrophone); break;
       }
 
       if(newComponent) {
@@ -377,18 +376,10 @@ export function PCBuilder3D() {
 
   useEffect(() => {
     const scene = sceneRef.current;
-    scene.background = new THREE.Color(0xE0E0E0);
-    const darkBackground = new THREE.Color(0x282c34);
-
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        scene.background = darkBackground;
-    }
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-        scene.background = event.matches ? darkBackground : new THREE.Color(0xE0E0E0);
-    });
+    scene.background = new THREE.Color(0x87CEEB); // Sky blue background
 
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
-    camera.position.set(0, 10, 15);
+    camera.position.set(0, 10, 18);
     camera.lookAt(0, 2, 0);
     cameraRef.current = camera;
 
@@ -400,6 +391,7 @@ export function PCBuilder3D() {
 
     controlsRef.current = new OrbitControls(camera, renderer.domElement);
     controlsRef.current.enableDamping = true;
+    controlsRef.current.maxPolarAngle = Math.PI / 2 - 0.05; // Prevent looking below the floor
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambientLight);
@@ -408,17 +400,68 @@ export function PCBuilder3D() {
     directionalLight.castShadow = true;
     scene.add(directionalLight);
 
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(40, 40),
-      new THREE.MeshStandardMaterial({ color: 0xcccccc, name: 'ground' })
-    );
-    ground.name = 'ground';
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    scene.add(ground);
+    // Office Floor
+    const floorMaterial = new THREE.MeshStandardMaterial({ color: 0xDEB887 }); // BurlyWood
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), floorMaterial);
+    floor.name = 'ground';
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // Office Walls
+    const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xF5F5DC }); // Beige
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(40, 20, 0.5), wallMaterial);
+    backWall.position.set(0, 10, -20);
+    backWall.receiveShadow = true;
+    scene.add(backWall);
+
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 20, 40), wallMaterial);
+    leftWall.position.set(-20, 10, 0);
+    leftWall.receiveShadow = true;
+    scene.add(leftWall);
+
+    // Wall Outlet
+    const outletGroup = new THREE.Group();
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.1), new THREE.MeshStandardMaterial({ color: 0xFFFFFF }));
+    outletGroup.add(plate);
+    const socket1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.1), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+    socket1.position.set(0, 0.2, 0.01);
+    outletGroup.add(socket1);
+    const socket2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.1), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+    socket2.position.set(0, -0.2, 0.01);
+    outletGroup.add(socket2);
+    outletGroup.position.set(5, 2, -19.7);
+    scene.add(outletGroup);
+
+
+    // Office Desk
+    const deskGroup = new THREE.Group();
+    const tabletopMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 }); // SaddleBrown
+    const legMaterial = new THREE.MeshStandardMaterial({ color: 0x696969 }); // DimGray
+    
+    const tabletop = new THREE.Mesh(new THREE.BoxGeometry(12, 0.3, 6), tabletopMaterial);
+    tabletop.position.y = DESK_LEVEL;
+    tabletop.castShadow = true;
+    tabletop.receiveShadow = true;
+    deskGroup.add(tabletop);
+
+    const leg1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, DESK_LEVEL, 0.3), legMaterial);
+    leg1.position.set(-5.5, DESK_LEVEL / 2, 2.5);
+    deskGroup.add(leg1);
+    const leg2 = leg1.clone();
+    leg2.position.set(5.5, DESK_LEVEL / 2, 2.5);
+    deskGroup.add(leg2);
+    const leg3 = leg1.clone();
+    leg3.position.set(-5.5, DESK_LEVEL / 2, -2.5);
+    deskGroup.add(leg3);
+    const leg4 = leg1.clone();
+    leg4.position.set(5.5, DESK_LEVEL / 2, -2.5);
+    deskGroup.add(leg4);
+    
+    scene.add(deskGroup);
 
     const tower = createComponent('cpu-tower', 'central-unit', 'Central Unit', 
-      [0, 2.5, 0],
+      [-7, 2.5, 0],
       createTower
     );
     tower.userData.inScene = true;
@@ -525,13 +568,16 @@ export function PCBuilder3D() {
         
         if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
             const object = parentGroup as DraggableObject;
-            if (object.name === 'cpu-tower') return;
-            
+            if (object.name === 'cpu-tower') {
+                planeRef.current.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0));
+            } else {
+                 planeRef.current.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, DESK_LEVEL, 0));
+            }
+
             controlsRef.current.enabled = false;
             selectedObjectForDragRef.current = object;
             document.body.style.cursor = 'grabbing';
 
-            planeRef.current.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), object.position);
             if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
               offsetRef.current.copy(intersectionRef.current).sub(object.position);
             }
@@ -560,16 +606,20 @@ export function PCBuilder3D() {
             }
 
             setSelectedComponent(prevSelected => {
-                if (prevSelected) {
+                if (prevSelected && (!clickedObject || prevSelected.userData.id !== clickedObject.userData.id)) {
                     prevSelected.traverse(child => removeOutline(child));
                 }
+                 if(clickedObject && prevSelected && clickedObject.userData.id === prevSelected.userData.id) {
+                    clickedObject.traverse(child => removeOutline(child));
+                    return null;
+                }
 
-                if (clickedObject && (!prevSelected || prevSelected.userData.id !== clickedObject.userData.id)) {
+                if (clickedObject) {
                     clickedObject.traverse(child => applyOutline(child));
                     return clickedObject;
                 }
                 
-                return null; // Deselect if clicking the same object again or clicking empty space
+                return null; // Deselect if clicking empty space
             });
         }
         
@@ -610,9 +660,6 @@ export function PCBuilder3D() {
       handleConnection(selectedComponent.name, portId);
     }
     setConnectionDialogOpen(false);
-    if(selectedComponent) {
-        selectedComponent.traverse(child => removeOutline(child));
-    }
   }
 
 
