@@ -173,15 +173,17 @@ export function PCBuilder3D() {
     animate();
 
     const handleResize = () => {
-      const { clientWidth, clientHeight } = mountRef.current!;
+      if (!mountRef.current) return;
+      const { clientWidth, clientHeight } = mountRef.current;
       camera.aspect = clientWidth / clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(clientWidth, clientHeight);
     };
     
     const onPointerMove = (event: PointerEvent) => {
-      const { clientWidth, clientHeight, getBoundingClientRect } = mountRef.current!;
-      const { left, top } = getBoundingClientRect();
+      if (!mountRef.current) return;
+      const { clientWidth, clientHeight } = mountRef.current;
+      const { left, top } = mountRef.current.getBoundingClientRect();
       mouseRef.current.x = ((event.clientX - left) / clientWidth) * 2 - 1;
       mouseRef.current.y = -((event.clientY - top) / clientHeight) * 2 + 1;
       
@@ -256,8 +258,10 @@ export function PCBuilder3D() {
       currentMount?.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('resize', handleResize);
-      renderer.dispose();
-      mountRef.current?.removeChild(renderer.domElement);
+      if (rendererRef.current && mountRef.current) {
+        rendererRef.current.dispose();
+        mountRef.current.removeChild(rendererRef.current.domElement);
+      }
     };
   }, [createComponent, createPort, updateConnection]);
 
