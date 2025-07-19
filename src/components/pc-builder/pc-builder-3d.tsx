@@ -557,11 +557,13 @@ export function PCBuilder3D() {
             if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
                 const object = parentGroup as DraggableObject;
                 
-                if(selectedComponent && selectedComponent.userData.id === object.userData.id) {
+                if (selectedComponent && selectedComponent.userData.id === object.userData.id) {
+                    // Clicked the same component again, so deselect it.
                     selectedComponent.traverse(child => removeOutline(child));
                     setSelectedComponent(null);
                 } else {
-                    if(selectedComponent) {
+                    // Clicked a new component, so select it.
+                    if (selectedComponent) {
                         selectedComponent.traverse(child => removeOutline(child));
                     }
                     object.traverse(child => applyOutline(child));
@@ -569,6 +571,7 @@ export function PCBuilder3D() {
                 }
             }
         } else {
+            // Clicked on empty space (ground or background)
             const groundIntersect = raycasterRef.current.intersectObjects(scene.getObjectsByProperty('name', 'ground'));
             if(groundIntersect.length > 0) {
               if (selectedComponent) {
