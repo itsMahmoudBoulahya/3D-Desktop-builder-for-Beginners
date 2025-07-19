@@ -72,8 +72,6 @@ export function PCBuilder3D() {
     sceneRef.current.add(group);
     
     if (name !== 'cpu-tower') {
-      // This was causing duplicates when dragging from sidebar
-      // draggableObjectsRef.current.push(group);
     }
     return group;
   }, []);
@@ -521,6 +519,7 @@ export function PCBuilder3D() {
         
         if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
             const object = parentGroup as DraggableObject;
+            if (object.name === 'cpu-tower') return;
             selectedObjectForDragRef.current = object;
             document.body.style.cursor = 'grabbing';
             controlsRef.current.enabled = false;
@@ -555,30 +554,30 @@ export function PCBuilder3D() {
             }
 
             if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
-                const object = parentGroup as DraggableObject;
-                
-                if (selectedComponent && selectedComponent.userData.id === object.userData.id) {
-                    // Clicked the same component again, so deselect it.
-                    selectedComponent.traverse(child => removeOutline(child));
-                    setSelectedComponent(null);
-                } else {
-                    // Clicked a new component, so select it.
-                    if (selectedComponent) {
-                        selectedComponent.traverse(child => removeOutline(child));
+                const clickedObject = parentGroup as DraggableObject;
+
+                setSelectedComponent(prevSelected => {
+                    // If something is already selected
+                    if (prevSelected) {
+                        prevSelected.traverse(child => removeOutline(child));
+                        // If the clicked object is the same as the selected one, deselect it
+                        if (prevSelected.userData.id === clickedObject.userData.id) {
+                            return null;
+                        }
                     }
-                    object.traverse(child => applyOutline(child));
-                    setSelectedComponent(object);
-                }
+                    // Otherwise, select the new object
+                    clickedObject.traverse(child => applyOutline(child));
+                    return clickedObject;
+                });
             }
         } else {
-            // Clicked on empty space (ground or background)
-            const groundIntersect = raycasterRef.current.intersectObjects(scene.getObjectsByProperty('name', 'ground'));
-            if(groundIntersect.length > 0) {
-              if (selectedComponent) {
-                  selectedComponent.traverse(child => removeOutline(child));
-                  setSelectedComponent(null);
-              }
-            }
+            // Clicked on empty space, so deselect
+            setSelectedComponent(prevSelected => {
+                if (prevSelected) {
+                    prevSelected.traverse(child => removeOutline(child));
+                }
+                return null;
+            });
         }
     };
     
@@ -605,6 +604,7 @@ export function PCBuilder3D() {
   }, [createComponent, createPort, handleConnection, toast]);
 
   const onConnectClick = () => {
+    if (selectedComponent && selectedComponent.name === 'cpu-tower') return;
     setConnectionDialogOpen(true);
   }
 
@@ -631,7 +631,7 @@ export function PCBuilder3D() {
           {tooltip.content}
         </div>
       )}
-      {selectedComponent && (
+      {selectedComponent && selectedComponent.name !== 'cpu-tower' && (
           <div className='absolute bottom-5 left-1/2 -translate-x-1/2 bg-card p-4 rounded-lg shadow-2xl border flex items-center gap-4'>
               <p className='font-semibold text-card-foreground'>Selected: {selectedComponent.userData.info.split(': ')[1]}</p>
               <Button onClick={onConnectClick}>Connect</Button>
@@ -662,3 +662,5 @@ export function PCBuilder3D() {
     </div>
   );
 }
+
+    
