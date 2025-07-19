@@ -35,7 +35,7 @@ export function MainLayout() {
             <SidebarGroupLabel>Instructions</SidebarGroupLabel>
             <div className="px-2 text-sm text-muted-foreground flex flex-col gap-1">
               <p>Drag components around the scene.</p>
-              <p>Connect peripherals to the PC tower by dragging components near a port.</p>
+              <p>Click a component to select it, then click 'Connect'.</p>
               <p>Hover on components to see info.</p>
               <div className='mt-2 space-y-1'>
                 <div className="flex items-center gap-2"><span className="h-3 w-3 inline-block rounded-full bg-green-500"></span>Correct Connection</div>

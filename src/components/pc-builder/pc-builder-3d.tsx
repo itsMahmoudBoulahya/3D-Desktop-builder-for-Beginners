@@ -2,15 +2,25 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
+import { Button } from '../ui/button';
+import { ConnectionDialog } from './connection-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 
-type DraggableObject = THREE.Group;
-type PortObject = THREE.Mesh;
+export type DraggableObject = THREE.Group;
+export type PortObject = THREE.Mesh;
 
 const CONNECTION_DISTANCE_THRESHOLD = 2.0;
 
 export function PCBuilder3D() {
   const mountRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  
   const [tooltip, setTooltip] = useState<{ content: string; x: number; y: number } | null>(null);
+  const [selectedComponent, setSelectedComponent] = useState<DraggableObject | null>(null);
+  const [isConnectionDialogOpen, setConnectionDialogOpen] = useState(false);
+  const [wrongConnectionAlert, setWrongConnectionAlert] = useState<{ open: boolean, portType: string, deviceType: string }>({ open: false, portType: '', deviceType: '' });
+
 
   const sceneRef = useRef(new THREE.Scene());
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -22,10 +32,29 @@ export function PCBuilder3D() {
   const portsRef = useRef<PortObject[]>([]);
   const connectionsRef = useRef<Map<string, { line: THREE.Line, toPortId: string }>>(new Map());
   
-  const selectedObjectRef = useRef<DraggableObject | null>(null);
+  const selectedObjectForDragRef = useRef<DraggableObject | null>(null);
   const planeRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const intersectionRef = useRef(new THREE.Vector3());
   const offsetRef = useRef(new THREE.Vector3());
+
+  const outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x00aaff, side: THREE.BackSide });
+
+  const applyOutline = (object: THREE.Object3D) => {
+    if (object instanceof THREE.Mesh) {
+      const outlineMesh = object.clone();
+      outlineMesh.material = outlineMaterial;
+      outlineMesh.scale.multiplyScalar(1.05);
+      outlineMesh.name = 'outline';
+      object.add(outlineMesh);
+    }
+  };
+
+  const removeOutline = (object: THREE.Object3D) => {
+    const outline = object.getObjectByName('outline');
+    if (outline) {
+      object.remove(outline);
+    }
+  };
 
   const createComponent = useCallback((
     name: string,
@@ -36,18 +65,10 @@ export function PCBuilder3D() {
   ): DraggableObject => {
     const group = createGeometry();
     group.name = name;
-    group.userData = { id: name, type, info, height: 5 }; // Assuming a generic height for positioning
+    group.userData = { id: name, type, info };
     group.position.set(...position);
     sceneRef.current.add(group);
     
-    // Make children of the group draggable as one unit
-    const draggableMeshes: THREE.Object3D[] = [];
-    group.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-            draggableMeshes.push(child);
-        }
-    });
-
     if (name !== 'cpu-tower') {
       draggableObjectsRef.current.push(group);
     }
@@ -62,7 +83,6 @@ export function PCBuilder3D() {
     caseMesh.receiveShadow = true;
     group.add(caseMesh);
 
-    // Add some details
     const frontPanel = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 0.1), new THREE.MeshStandardMaterial({ color: 0x444952 }));
     frontPanel.position.set(0, 2, 2.26);
     group.add(frontPanel);
@@ -168,9 +188,67 @@ export function PCBuilder3D() {
       return group;
   }
 
+  const createHeadphones = () => {
+    const group = new THREE.Group();
+    const material = new THREE.MeshStandardMaterial({ color: 0x4a4a4a });
+  
+    // Headband
+    const path = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 1.2, 0),
+        new THREE.Vector3(0.5, 1.1, 0),
+        new THREE.Vector3(0.8, 0.8, 0),
+        new THREE.Vector3(0.9, 0.4, 0),
+        new THREE.Vector3(0.9, 0, 0),
+    ]);
+    const geometry = new THREE.TubeGeometry(path, 20, 0.1, 8, false);
+    const headband = new THREE.Mesh(geometry, material);
+    group.add(headband);
+
+    const headbandMirror = headband.clone();
+    headbandMirror.scale.x = -1;
+    group.add(headbandMirror);
+  
+    // Earpieces
+    const earpieceGeo = new THREE.CylinderGeometry(0.4, 0.3, 0.3, 32);
+    const earpieceLeft = new THREE.Mesh(earpieceGeo, material);
+    earpieceLeft.rotation.z = Math.PI / 2;
+    earpieceLeft.position.set(-0.9, 0, 0);
+    group.add(earpieceLeft);
+  
+    const earpieceRight = earpieceLeft.clone();
+    earpieceRight.position.x = 0.9;
+    group.add(earpieceRight);
+  
+    group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+    group.scale.set(0.8, 0.8, 0.8);
+    return group;
+  }
+  
+  const createMicrophone = () => {
+    const group = new THREE.Group();
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x555b6e });
+    const headMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
+
+    const standBase = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 0.2, 32), bodyMaterial);
+    standBase.position.y = 0.1;
+    group.add(standBase);
+
+    const standArm = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5, 16), bodyMaterial);
+    standArm.position.y = 0.95;
+    group.add(standArm);
+
+    const micHead = new THREE.Mesh(new THREE.SphereGeometry(0.4, 32, 32), headMaterial);
+    micHead.position.y = 1.9;
+    group.add(micHead);
+
+    group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+    return group;
+  }
+
+
   const createPort = useCallback((
     name: string,
-    type: 'usb' | 'hdmi' | 'power',
+    type: 'usb' | 'hdmi' | 'power' | 'audio-out' | 'mic-in',
     accepts: string[],
     parent: THREE.Object3D,
     position: [number, number, number],
@@ -186,39 +264,63 @@ export function PCBuilder3D() {
     portsRef.current.push(port);
   }, []);
   
-  const updateConnection = useCallback((object: DraggableObject, port: PortObject) => {
+  const handleConnection = useCallback((deviceId: string, portId: string) => {
+    const object = sceneRef.current.getObjectByName(deviceId) as DraggableObject;
+    const port = portsRef.current.find(p => p.name === portId);
+
+    if (!object || !port) return;
+
     const isCorrect = port.userData.accepts.includes(object.userData.type);
-    const color = isCorrect ? 0x22c55e : 0xef4444;
     
+    // Disconnect if already connected to another port
     if (connectionsRef.current.has(object.name)) {
         const existing = connectionsRef.current.get(object.name)!;
         sceneRef.current.remove(existing.line);
         const oldPort = portsRef.current.find(p => p.name === existing.toPortId);
         if(oldPort) oldPort.userData.connectedTo = null;
+        connectionsRef.current.delete(object.name);
     }
     
-    const startPoint = object.position.clone();
-    startPoint.y = 0.2;
+    const color = isCorrect ? 0x22c55e : 0xef4444;
+    
+    const startPoint = new THREE.Vector3();
+    object.getWorldPosition(startPoint);
+    startPoint.y = object.position.y - (new THREE.Box3().setFromObject(object).max.y - new THREE.Box3().setFromObject(object).min.y)/2 + 0.1;
+
     const endPoint = port.getWorldPosition(new THREE.Vector3());
     
-    const material = new THREE.LineBasicMaterial({ color, linewidth: 2 });
+    const material = new THREE.LineBasicMaterial({ color, linewidth: 3 });
     const geometry = new THREE.BufferGeometry().setFromPoints([startPoint, endPoint]);
     const line = new THREE.Line(geometry, material);
+    line.name = `line_${object.name}`;
     sceneRef.current.add(line);
 
     connectionsRef.current.set(object.name, { line, toPortId: port.name });
     port.userData.connectedTo = object.name;
     
     if (isCorrect) {
+        toast({ title: "Connection Successful!", description: `${object.userData.type} connected to ${port.userData.type} port.` });
         const direction = new THREE.Vector3().subVectors(object.position, endPoint).normalize();
-        const newPosition = endPoint.clone().add(direction.multiplyScalar(CONNECTION_DISTANCE_THRESHOLD * 0.75));
+        const newPosition = endPoint.clone().add(direction.multiplyScalar(CONNECTION_DISTANCE_THRESHOLD * 0.9));
         
         const boundingBox = new THREE.Box3().setFromObject(object);
         const height = boundingBox.max.y - boundingBox.min.y;
         newPosition.y = height / 2;
-        object.position.copy(newPosition);
+        // object.position.copy(newPosition); // Temporarily disable snapping
+    } else {
+        setWrongConnectionAlert({
+            open: true,
+            portType: port.userData.type.toUpperCase(),
+            deviceType: object.userData.type.toUpperCase(),
+        });
+        // Don't keep the wrong connection line
+        setTimeout(() => {
+            sceneRef.current.remove(line);
+            connectionsRef.current.delete(object.name);
+            port.userData.connectedTo = null;
+        }, 500);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -263,17 +365,22 @@ export function PCBuilder3D() {
       createTower
     );
     
-    createPort('usb1', 'usb', ['keyboard', 'mouse', 'printer'], tower, [-0.7, 0.5, 2.3], 0x0077ff);
-    createPort('usb2', 'usb', ['keyboard', 'mouse', 'printer'], tower, [-0.4, 0.5, 2.3], 0x0077ff);
-    createPort('hdmi1', 'hdmi', ['monitor'], tower, [0.2, 0, 2.3], 0xff8c00);
-    createPort('power1', 'power', ['power'], tower, [0.7, -2, 2.3], 0xdddd00);
+    // Back ports
+    createPort('usb1', 'usb', ['keyboard', 'mouse', 'printer', 'mic'], tower, [-0.7, 1.5, -2.3], 0x0077ff);
+    createPort('usb2', 'usb', ['keyboard', 'mouse', 'printer', 'mic'], tower, [-0.4, 1.5, -2.3], 0x0077ff);
+    createPort('hdmi1', 'hdmi', ['monitor'], tower, [0.2, 1.5, -2.3], 0xff8c00);
+    createPort('power1', 'power', ['power'], tower, [0.7, -2, -2.3], 0xdddd00);
+    createPort('audio-out1', 'audio-out', ['headphones'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
+    createPort('mic-in1', 'mic-in', ['mic'], tower, [-0.4, -0.5, -2.3], 0xff69b4);
 
     createComponent('monitor', 'monitor', 'Output Device: Monitor', [-7, 2.9, -2], createMonitor);
     createComponent('keyboard', 'keyboard', 'Input Device: Keyboard', [7, 0.1, 2.5], createKeyboard);
     createComponent('mouse', 'mouse', 'Input Device: Mouse', [9, 0.1, 2.5], createMouse);
     createComponent('printer', 'printer', 'Output Device: Printer', [-8, 0.75, 4], createPrinter);
     createComponent('power', 'power', 'Power Source', [7, 0.2, 7], createPowerStrip);
-    
+    createComponent('headphones', 'headphones', 'Output Device: Headphones', [-10, 1, 6], createHeadphones);
+    createComponent('mic', 'mic', 'Input Device: Microphone', [10, 1, 6], createMicrophone);
+
     const animate = () => {
       if (!rendererRef.current || !cameraRef.current) return;
       requestAnimationFrame(animate);
@@ -283,7 +390,8 @@ export function PCBuilder3D() {
           const port = scene.getObjectByName(conn.toPortId) as PortObject;
           if (obj && port && conn.line.geometry.attributes.position) {
               const positions = conn.line.geometry.attributes.position.array as Float32Array;
-              const start = obj.position.clone();
+              const start = new THREE.Vector3();
+              obj.getWorldPosition(start);
               const boundingBox = new THREE.Box3().setFromObject(obj);
               const height = boundingBox.max.y - boundingBox.min.y;
               start.y = obj.position.y - height / 2 + 0.1;
@@ -319,18 +427,18 @@ export function PCBuilder3D() {
       
       raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
       
-      if(selectedObjectRef.current) {
+      if(selectedObjectForDragRef.current) {
         raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current);
-        selectedObjectRef.current.position.copy(intersectionRef.current.sub(offsetRef.current));
+        selectedObjectForDragRef.current.position.copy(intersectionRef.current.sub(offsetRef.current));
       } else {
-        const intersects = raycasterRef.current.intersectObjects(draggableObjectsRef.current.flatMap(o => o.children));
+        const intersects = raycasterRef.current.intersectObjects(draggableObjectsRef.current.flatMap(o => o.children), true);
         if (intersects.length > 0) {
-          document.body.style.cursor = 'grab';
           let parentGroup = intersects[0].object.parent;
           while(parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
             parentGroup = parentGroup.parent;
           }
-          if(parentGroup) {
+          if(parentGroup && parentGroup !== selectedComponent) {
+            document.body.style.cursor = 'grab';
             const obj = parentGroup as DraggableObject;
             setTooltip({ content: obj.userData.info, x: event.clientX, y: event.clientY });
           }
@@ -344,7 +452,7 @@ export function PCBuilder3D() {
     const onPointerDown = (event: PointerEvent) => {
       if(event.button !== 0 || !cameraRef.current) return;
       raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-      const intersects = raycasterRef.current.intersectObjects(draggableObjectsRef.current.flatMap(o => o.children));
+      const intersects = raycasterRef.current.intersectObjects(draggableObjectsRef.current.flatMap(o => o.children), true);
 
       if (intersects.length > 0) {
         let parentGroup = intersects[0].object.parent;
@@ -354,7 +462,7 @@ export function PCBuilder3D() {
         
         if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
             const object = parentGroup as DraggableObject;
-            selectedObjectRef.current = object;
+            selectedObjectForDragRef.current = object;
             document.body.style.cursor = 'grabbing';
             planeRef.current.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), object.position);
             if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
@@ -365,41 +473,57 @@ export function PCBuilder3D() {
     };
     
     const onPointerUp = () => {
-      if (selectedObjectRef.current) {
-        const selected = selectedObjectRef.current;
-        document.body.style.cursor = 'grab';
-        
-        let closestPort: PortObject | null = null;
-        let minDistance = Infinity;
+      selectedObjectForDragRef.current = null;
+      document.body.style.cursor = 'default';
+    };
 
-        portsRef.current.forEach(port => {
-          const portWorldPos = port.getWorldPosition(new THREE.Vector3());
-          const distance = selected.position.distanceTo(portWorldPos);
-          if (distance < minDistance) {
-            minDistance = distance;
-            closestPort = port;
-          }
-        });
-        
-        if(closestPort && minDistance < CONNECTION_DISTANCE_THRESHOLD) {
-          if(closestPort.userData.connectedTo === null || closestPort.userData.connectedTo === selected.name) {
-            updateConnection(selected, closestPort);
-          }
+    const onClick = (event: MouseEvent) => {
+        if (selectedObjectForDragRef.current) return;
+        if (!cameraRef.current) return;
+
+        raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+        const intersects = raycasterRef.current.intersectObjects(draggableObjectsRef.current, true);
+
+        if (intersects.length > 0) {
+            let parentGroup = intersects[0].object.parent;
+            while (parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
+                parentGroup = parentGroup.parent;
+            }
+
+            if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
+                const object = parentGroup as DraggableObject;
+                if(selectedComponent && selectedComponent.userData.id === object.userData.id) {
+                    // deselect
+                    selectedComponent.traverse(child => removeOutline(child));
+                    setSelectedComponent(null);
+                } else {
+                    if(selectedComponent) {
+                        selectedComponent.traverse(child => removeOutline(child));
+                    }
+                    object.traverse(child => applyOutline(child));
+                    setSelectedComponent(object);
+                }
+            }
+        } else {
+            if (selectedComponent) {
+                selectedComponent.traverse(child => removeOutline(child));
+                setSelectedComponent(null);
+            }
         }
-      }
-      selectedObjectRef.current = null;
     };
     
     const currentMount = mountRef.current;
     handleResize();
     currentMount?.addEventListener('pointermove', onPointerMove);
     currentMount?.addEventListener('pointerdown', onPointerDown);
+    currentMount?.addEventListener('click', onClick);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('resize', handleResize);
 
     return () => {
       currentMount?.removeEventListener('pointermove', onPointerMove);
       currentMount?.removeEventListener('pointerdown', onPointerDown);
+      currentMount?.removeEventListener('click', onClick);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('resize', handleResize);
       if (rendererRef.current && mountRef.current) {
@@ -407,12 +531,28 @@ export function PCBuilder3D() {
         mountRef.current.removeChild(rendererRef.current.domElement);
       }
     };
-  }, [createComponent, createPort, updateConnection]);
+  }, [createComponent, createPort, handleConnection]);
+
+  const onConnectClick = () => {
+    setConnectionDialogOpen(true);
+  }
+
+  const onDialogConnect = (portId: string) => {
+    if (selectedComponent) {
+      handleConnection(selectedComponent.name, portId);
+    }
+    setConnectionDialogOpen(false);
+    if(selectedComponent) {
+        selectedComponent.traverse(child => removeOutline(child));
+    }
+    setSelectedComponent(null);
+  }
+
 
   return (
     <div className="relative h-[calc(100vh-theme(spacing.14))] w-full">
       <div ref={mountRef} className="h-full w-full" />
-      {tooltip && (
+      {tooltip && !selectedComponent && (
         <div
           className="pointer-events-none absolute -translate-x-1/2 -translate-y-[calc(100%+1rem)] rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground shadow-lg"
           style={{ left: tooltip.x, top: tooltip.y }}
@@ -420,6 +560,34 @@ export function PCBuilder3D() {
           {tooltip.content}
         </div>
       )}
+      {selectedComponent && (
+          <div className='absolute bottom-5 left-1/2 -translate-x-1/2 bg-card p-4 rounded-lg shadow-2xl border flex items-center gap-4'>
+              <p className='font-semibold text-card-foreground'>Selected: {selectedComponent.userData.info.split(': ')[1]}</p>
+              <Button onClick={onConnectClick}>Connect</Button>
+          </div>
+      )}
+      <ConnectionDialog 
+        isOpen={isConnectionDialogOpen}
+        onOpenChange={setConnectionDialogOpen}
+        device={selectedComponent}
+        ports={portsRef.current}
+        onConnect={onDialogConnect}
+      />
+      <AlertDialog open={wrongConnectionAlert.open} onOpenChange={(open) => setWrongConnectionAlert(prev => ({...prev, open}))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Incorrect Connection</AlertDialogTitle>
+            <AlertDialogDescription>
+              You cannot connect a {wrongConnectionAlert.deviceType} to a {wrongConnectionAlert.portType} port. Please choose a compatible port.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setWrongConnectionAlert({ open: false, portType: '', deviceType: '' })}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
