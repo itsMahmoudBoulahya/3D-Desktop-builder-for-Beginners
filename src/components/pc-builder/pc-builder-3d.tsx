@@ -786,6 +786,14 @@ export function PCBuilder3D() {
     };
     
     const onPointerUp = (event: PointerEvent) => {
+        // Prevent click logic from firing if interacting with UI
+        if (event.target !== rendererRef.current?.domElement) {
+            controlsRef.current.enabled = true;
+            selectedObjectForDragRef.current = null;
+            document.body.style.cursor = 'default';
+            return;
+        }
+
         if(isDraggingRef.current) {
             isDraggingRef.current = false;
         } else {
@@ -809,12 +817,16 @@ export function PCBuilder3D() {
                     prevSelected.traverse(child => removeOutline(child));
                 }
                 if(clickedObject && prevSelected && clickedObject.userData.id === prevSelected.userData.id) {
-                    setConnectionDialogOpen(false); // Close dialog if clicking same object
-                    return null;
+                    // Clicking the same object again should not close the dialog
+                    if (clickedObject) {
+                       clickedObject.traverse(child => applyOutline(child));
+                    }
+                    return clickedObject;
                 }
 
                 if (clickedObject) {
                     clickedObject.traverse(child => applyOutline(child));
+                    setConnectionDialogOpen(false); // Close dialog when selecting a new object
                     return clickedObject;
                 }
                 
