@@ -489,7 +489,7 @@ export function PCBuilder3D() {
 
       let newComponent: DraggableObject | null = null;
       switch(type) {
-        case 'monitor': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 2.24, dropPoint.z], createMonitor); break;
+        case 'monitor': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 2.8, dropPoint.z], createMonitor); break;
         case 'keyboard': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createKeyboard); break;
         case 'mouse': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createMouse); break;
         case 'printer': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.45, dropPoint.z], createPrinter); break;
@@ -652,11 +652,12 @@ export function PCBuilder3D() {
 
 
     const monitor = createComponent('monitor', 'monitor', 'Output Device: Monitor',
-        [0, DESK_LEVEL + 2.24, -2],
+        [0, DESK_LEVEL + 2.8, -2],
         createMonitor
     );
     draggableObjectsRef.current.push(monitor);
     createPort('monitor-power', 'power', ['monitor'], monitor, [0, -2.2, 0], 0xdddd00);
+    createPort('monitor-hdmi', 'hdmi_in', ['monitor'], monitor, [0.5, -2.2, 0], 0xff8c00);
 
 
     const powerStrip = createComponent('power-strip', 'power', 'Power Strip', 
@@ -807,7 +808,8 @@ export function PCBuilder3D() {
                 if (prevSelected) {
                     prevSelected.traverse(child => removeOutline(child));
                 }
-                 if(clickedObject && prevSelected && clickedObject.userData.id === prevSelected.userData.id) {
+                if(clickedObject && prevSelected && clickedObject.userData.id === prevSelected.userData.id) {
+                    setConnectionDialogOpen(false); // Close dialog if clicking same object
                     return null;
                 }
 
@@ -816,6 +818,7 @@ export function PCBuilder3D() {
                     return clickedObject;
                 }
                 
+                setConnectionDialogOpen(false); // Close dialog if clicking elsewhere
                 return null;
             });
         }
