@@ -184,15 +184,22 @@ export function PCBuilder3D() {
   }
   
   const createPowerStrip = () => {
-      const group = new THREE.Group();
-      const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
-      
-      const strip = new THREE.Mesh(new THREE.BoxGeometry(2, 0.4, 0.8), bodyMaterial);
-      group.add(strip);
-      
-      group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
-      group.scale.set(0.5, 0.5, 0.5);
-      return group;
+    const group = new THREE.Group();
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.4, 0.8), bodyMaterial);
+    group.add(strip);
+
+    const outletMaterial = new THREE.MeshStandardMaterial({color: 0x111111});
+    for(let i=0; i < 4; i++) {
+        const outlet = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.5), outletMaterial);
+        outlet.position.set(-0.9 + i * 0.6, 0.21, 0);
+        group.add(outlet);
+    }
+    
+    group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+    group.scale.set(0.8, 0.8, 0.8);
+    return group;
   }
 
   const createHeadphones = () => {
@@ -253,10 +260,62 @@ export function PCBuilder3D() {
     return group;
   }
 
+  const createSpeakers = () => {
+    const group = new THREE.Group();
+    const material = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const speakerGeo = new THREE.BoxGeometry(0.8, 1.2, 0.8);
+    
+    const speaker1 = new THREE.Mesh(speakerGeo, material);
+    speaker1.position.x = -0.6;
+    group.add(speaker1);
+
+    const speaker2 = new THREE.Mesh(speakerGeo, material);
+    speaker2.position.x = 0.6;
+    group.add(speaker2);
+
+    group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+    return group;
+  }
+
+  const createWebcam = () => {
+    const group = new THREE.Group();
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
+    const lensMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
+
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 0.3), bodyMaterial);
+    group.add(body);
+
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 16), lensMaterial);
+    lens.rotation.x = Math.PI / 2;
+    lens.position.z = 0.15;
+    group.add(lens);
+
+    group.scale.set(0.7, 0.7, 0.7);
+    group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+    return group;
+  }
+
+  const createScanner = () => {
+    const group = new THREE.Group();
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+    const glassMaterial = new THREE.MeshStandardMaterial({ color: 0x88aaff, transparent: true, opacity: 0.3 });
+
+    const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.5, 2.5), bodyMaterial);
+    group.add(body);
+
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2.2), glassMaterial);
+    glass.rotation.x = -Math.PI / 2;
+    glass.position.y = 0.26;
+    group.add(glass);
+    
+    group.scale.set(0.7, 0.7, 0.7);
+    group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+    return group;
+  }
 
   const createPort = useCallback((
     name: string,
-    type: 'usb' | 'hdmi' | 'power' | 'audio-out' | 'mic-in',
+    type: string,
     accepts: string[],
     parent: THREE.Object3D,
     position: [number, number, number],
@@ -336,7 +395,7 @@ export function PCBuilder3D() {
       if (draggableObjectsRef.current.find(obj => obj.name === name)) {
         toast({
           title: 'Component already in scene',
-          description: `The ${info.split(': ')[1]} is already in the scene.`,
+          description: `The ${info.split(': ')[1] || info} is already in the scene.`,
           variant: 'destructive'
         });
         return;
@@ -360,12 +419,16 @@ export function PCBuilder3D() {
         case 'keyboard': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createKeyboard); break;
         case 'mouse': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createMouse); break;
         case 'printer': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.45, dropPoint.z], createPrinter); break;
-        case 'power': newComponent = createComponent(name, type, info, [dropPoint.x, 0.1, dropPoint.z], createPowerStrip); break;
+        case 'power': newComponent = createComponent(name, 'power-strip', info, [dropPoint.x, DESK_LEVEL + 0.16, dropPoint.z], createPowerStrip); break;
         case 'headphones': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.7, dropPoint.z], createHeadphones); break;
         case 'mic': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createMicrophone); break;
+        case 'speakers': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createSpeakers); break;
+        case 'webcam': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.2, dropPoint.z], createWebcam); break;
+        case 'scanner': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.175, dropPoint.z], createScanner); break;
       }
 
       if(newComponent) {
+        if(newComponent.userData.type === 'power-strip') newComponent.userData.type = 'power';
         draggableObjectsRef.current.push(newComponent);
       }
     };
@@ -427,18 +490,11 @@ export function PCBuilder3D() {
     leftWall.receiveShadow = true;
     scene.add(leftWall);
 
-    // Wall Outlet
-    const outletGroup = new THREE.Group();
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.1), new THREE.MeshStandardMaterial({ color: 0xFFFFFF }));
-    outletGroup.add(plate);
-    const socket1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.1), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-    socket1.position.set(0, 0.2, 0.01);
-    outletGroup.add(socket1);
-    const socket2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.1), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-    socket2.position.set(0, -0.2, 0.01);
-    outletGroup.add(socket2);
-    outletGroup.position.set(5, 2, -19.7);
-    scene.add(outletGroup);
+    // Wall Outlet as a "port"
+    const wallOutletGroup = new THREE.Group();
+    wallOutletGroup.position.set(5, 2, -19.7);
+    scene.add(wallOutletGroup);
+    createPort('wall-outlet', 'wall-power', ['power'], wallOutletGroup, [0, 0, 0], 0x111111);
 
 
     // Office Desk
@@ -474,12 +530,24 @@ export function PCBuilder3D() {
     tower.userData.inScene = true;
     draggableObjectsRef.current.push(tower);
     
-    createPort('usb1', 'usb', ['keyboard', 'mouse', 'printer', 'mic'], tower, [-0.7, 1.5, -2.3], 0x0077ff);
-    createPort('usb2', 'usb', ['keyboard', 'mouse', 'printer', 'mic'], tower, [-0.4, 1.5, -2.3], 0x0077ff);
+    createPort('usb1', 'usb', ['keyboard', 'mouse', 'printer', 'mic', 'webcam', 'scanner'], tower, [-0.7, 1.5, -2.3], 0x0077ff);
+    createPort('usb2', 'usb', ['keyboard', 'mouse', 'printer', 'mic', 'webcam', 'scanner'], tower, [-0.4, 1.5, -2.3], 0x0077ff);
     createPort('hdmi1', 'hdmi', ['monitor'], tower, [0.2, 1.5, -2.3], 0xff8c00);
-    createPort('power1', 'power', ['power'], tower, [0.7, -2, -2.3], 0xdddd00);
-    createPort('audio-out1', 'audio-out', ['headphones'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
+    createPort('power1', 'power', ['power-strip'], tower, [0.7, -2, -2.3], 0xdddd00);
+    createPort('audio-out1', 'audio-out', ['headphones', 'speakers'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
+    createPort('audio-in1', 'audio-in', ['speakers'], tower, [-0.7, -0.2, -2.3], 0x32CD32);
     createPort('mic-in1', 'mic-in', ['mic'], tower, [-0.4, -0.5, -2.3], 0xff69b4);
+
+    const powerStrip = createComponent('power-strip', 'power', 'Power Strip', 
+      [3, 0.2, -18],
+      createPowerStrip
+    );
+    draggableObjectsRef.current.push(powerStrip);
+    createPort('power-strip-1', 'power-strip', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [-0.9, 0.21, 0], 0x111111);
+    createPort('power-strip-2', 'power-strip', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [-0.3, 0.21, 0], 0x111111);
+    createPort('power-strip-3', 'power-strip', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [0.3, 0.21, 0], 0x111111);
+    createPort('power-strip-4', 'power-strip', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [0.9, 0.21, 0], 0x111111);
+
 
     const animate = () => {
       if (!rendererRef.current || !cameraRef.current) return;
@@ -684,7 +752,7 @@ export function PCBuilder3D() {
       )}
       {selectedComponent && selectedComponent.name !== 'cpu-tower' && (
           <div className='absolute bottom-5 left-1/2 -translate-x-1/2 bg-card p-4 rounded-lg shadow-2xl border flex items-center gap-4'>
-              <p className='font-semibold text-card-foreground'>Selected: {selectedComponent.userData.info.split(': ')[1]}</p>
+              <p className='font-semibold text-card-foreground'>Selected: {selectedComponent.userData.info.split(': ')[1] || selectedComponent.userData.info}</p>
               <Button onClick={onConnectClick}>Connect</Button>
           </div>
       )}
