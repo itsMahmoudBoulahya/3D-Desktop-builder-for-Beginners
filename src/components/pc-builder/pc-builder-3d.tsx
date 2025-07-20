@@ -387,31 +387,33 @@ export function PCBuilder3D() {
 
     let isCorrect = port.userData.accepts.includes(object.userData.type);
 
-    // Special check for power connections
-    if (['central-unit', 'monitor', 'printer', 'scanner'].includes(object.userData.type) && port.userData.type === 'power-strip-outlet') {
+    if (['monitor', 'printer', 'scanner', 'central-unit'].includes(object.userData.type) && port.userData.type === 'power-strip-outlet') {
       isCorrect = true;
     } else if (object.userData.type === 'power' && port.userData.type === 'wall-power') {
       isCorrect = true;
     }
     
-    // Check if a connection from this device type to this port type already exists to prevent duplicates
     const existingConnections = connectionsRef.current.get(object.name) || [];
     const isDuplicate = existingConnections.some(conn => {
         const existingPort = portsRef.current.find(p => p.name === conn.toPortId);
         if (!existingPort) return false;
-
-        const isPowerToPower = port.userData.type.includes('power') && existingPort.userData.type.includes('power');
-        const isDataToData = !port.userData.type.includes('power') && !existingPort.userData.type.includes('power');
         
-        return isPowerToPower || isDataToData;
+        const isNewConnectionPower = port.userData.type.includes('power');
+        const isExistingConnectionPower = existingPort.userData.type.includes('power');
+
+        if (isNewConnectionPower && isExistingConnectionPower) return true; // Already has a power connection
+        if (!isNewConnectionPower && !isExistingConnectionPower) return true; // Already has a data connection
+
+        return false;
     });
 
     if (isDuplicate) {
         toast({
             variant: 'destructive',
             title: "Connection already exists",
-            description: `A similar connection for this device already exists.`,
+            description: `A connection of this type already exists for this device.`,
         });
+        setConnectionDialogOpen(false);
         return;
     }
     
@@ -430,10 +432,8 @@ export function PCBuilder3D() {
     sceneRef.current.add(line);
     
     const newConnection = { line, toPortId: port.name };
-    if (!connectionsRef.current.has(object.name)) {
-        connectionsRef.current.set(object.name, []);
-    }
-    connectionsRef.current.get(object.name)!.push(newConnection);
+    const currentConnections = connectionsRef.current.get(object.name) || [];
+    connectionsRef.current.set(object.name, [...currentConnections, newConnection]);
     port.userData.connectedTo = object.name;
     
     if (isCorrect) {
@@ -446,11 +446,12 @@ export function PCBuilder3D() {
         });
         setTimeout(() => {
             sceneRef.current.remove(line);
-            const connections = connectionsRef.current.get(object.name)!.filter(c => c.line !== line);
+            const connections = (connectionsRef.current.get(object.name) || []).filter(c => c.line !== line);
             connectionsRef.current.set(object.name, connections);
             port.userData.connectedTo = null;
         }, 500);
     }
+    setConnectionDialogOpen(false);
   }, [toast]);
   
   // Drag and drop from sidebar
@@ -625,10 +626,11 @@ export function PCBuilder3D() {
     leg4.position.set(5.5, DESK_LEVEL / 2, -2.5);
     deskGroup.add(leg4);
     
+    deskGroup.position.z = -16.5; // Move desk closer to the wall
     scene.add(deskGroup);
 
     const tower = createComponent('cpu-tower', 'central-unit', 'Central Unit', 
-      [-3, DESK_LEVEL + 2.0, -1.5],
+      [-3, DESK_LEVEL + 2.0, -18],
       createTower
     );
     tower.userData.inScene = true;
@@ -643,7 +645,7 @@ export function PCBuilder3D() {
     createPort('usb6', 'usb', usbTypes, tower, [-0.4, 0.9, -2.3], 0x0077ff);
     
     createPort('hdmi1', 'hdmi', ['monitor'], tower, [0.2, 1.5, -2.3], 0xff8c00);
-    createPort('power-tower', 'power-tower', ['power-strip-outlet'], tower, [0.7, -2, -2.3], 0xdddd00);
+    createPort('power-tower', 'power-tower', ['central-unit'], tower, [0.7, -2, -2.3], 0xdddd00);
 
     createPort('audio-out', 'audio-out', ['headphones', 'speakers'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
     createPort('audio-in', 'audio-in', [], tower, [-0.4, -0.5, -2.3], 0x0000ff);
@@ -651,15 +653,15 @@ export function PCBuilder3D() {
 
 
     const monitor = createComponent('monitor', 'monitor', 'Output Device: Monitor',
-        [0, DESK_LEVEL + 2.24, -1.5],
+        [0, DESK_LEVEL + 2.24, -18],
         createMonitor
     );
     draggableObjectsRef.current.push(monitor);
-    createPort('monitor-power', 'power', ['power-strip-outlet'], monitor, [0, -2.2, 0], 0xdddd00);
+    createPort('monitor-power', 'power', ['monitor'], monitor, [0, -2.2, 0], 0xdddd00);
 
 
     const powerStrip = createComponent('power-strip', 'power', 'Power Strip', 
-      [3, 0.2, -1.5],
+      [3, 0.2, -18],
       createPowerStrip
     );
     draggableObjectsRef.current.push(powerStrip);
@@ -767,7 +769,6 @@ export function PCBuilder3D() {
         if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
             const object = parentGroup as DraggableObject;
             
-            // Set the drag plane at the object's current y position
             planeRef.current.setFromNormalAndCoplanarPoint(
               new THREE.Vector3(0, 1, 0),
               new THREE.Vector3(0, intersects[0].point.y, 0)
@@ -788,7 +789,6 @@ export function PCBuilder3D() {
         if(isDraggingRef.current) {
             isDraggingRef.current = false;
         } else {
-            // This is a click, not a drag - handle selection
             raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
             const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene);
             const intersects = raycasterRef.current.intersectObjects(objectsToIntersect, true);
@@ -809,7 +809,7 @@ export function PCBuilder3D() {
                     prevSelected.traverse(child => removeOutline(child));
                 }
                  if(clickedObject && prevSelected && clickedObject.userData.id === prevSelected.userData.id) {
-                    return null; // Deselect if clicking the same object
+                    return null;
                 }
 
                 if (clickedObject) {
@@ -817,7 +817,7 @@ export function PCBuilder3D() {
                     return clickedObject;
                 }
                 
-                return null; // Deselect if clicking empty space
+                return null;
             });
         }
         
@@ -852,14 +852,6 @@ export function PCBuilder3D() {
     setConnectionDialogOpen(true);
   }
 
-  const onDialogConnect = (portId: string) => {
-    if (selectedComponent) {
-      handleConnection(selectedComponent.name, portId);
-    }
-    setConnectionDialogOpen(false);
-  }
-
-
   return (
     <div className="relative h-[calc(100vh-theme(spacing.14))] w-full">
       <div ref={mountRef} className="h-full w-full" />
@@ -882,7 +874,7 @@ export function PCBuilder3D() {
         onOpenChange={setConnectionDialogOpen}
         device={selectedComponent}
         ports={portsRef.current}
-        onConnect={onDialogConnect}
+        onConnect={handleConnection}
       />
       <AlertDialog open={wrongConnectionAlert.open} onOpenChange={(open) => setWrongConnectionAlert(prev => ({...prev, open}))}>
         <AlertDialogContent>

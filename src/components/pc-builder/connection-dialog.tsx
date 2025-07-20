@@ -33,13 +33,24 @@ export function ConnectionDialog({
     }
     
     // For devices that need power (monitor, printer, scanner, and now the central-unit)
-    if (['monitor', 'printer', 'scanner', 'central-unit'].includes(device.userData.type)) {
-       const powerPorts = ports.filter(p => p.userData.type === 'power-strip-outlet' && p.userData.connectedTo === null);
-       if(powerPorts.length > 0) return powerPorts;
-    }
+    const needsPower = ['monitor', 'printer', 'scanner', 'central-unit'].includes(device.userData.type);
+    const hasDataConnection = ['monitor', 'printer', 'scanner', 'keyboard', 'mouse', 'mic', 'webcam', 'speakers', 'headphones'].includes(device.userData.type);
 
-    // For other devices connecting to the CPU
-    return ports.filter(p => p.userData.accepts.includes(device.userData.type) && p.userData.connectedTo === null);
+    const availablePorts = [];
+
+    // Check for power ports if needed
+    if (needsPower) {
+       const powerPorts = ports.filter(p => p.userData.type === 'power-strip-outlet' && p.userData.accepts.includes(device.userData.type) && p.userData.connectedTo === null);
+       availablePorts.push(...powerPorts);
+    }
+    
+    // Check for data ports if needed
+    if (hasDataConnection) {
+        const dataPorts = ports.filter(p => p.userData.accepts.includes(device.userData.type) && p.userData.connectedTo === null && !p.userData.type.includes('power'));
+        availablePorts.push(...dataPorts);
+    }
+    
+    return availablePorts;
   }
 
   const availablePorts = getAvailablePorts();
@@ -55,7 +66,7 @@ export function ConnectionDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Connect {device.userData.info.split(': ')[1]}</DialogTitle>
+          <DialogTitle>Connect {device.userData.info.split(': ')[1] || device.userData.info}</DialogTitle>
           <DialogDescription>
             Select a port to connect to.
           </DialogDescription>
@@ -72,12 +83,10 @@ export function ConnectionDialog({
               </Button>
             ))
           ) : (
-            <p className="col-span-2 text-sm text-muted-foreground text-center">No available ports.</p>
+            <p className="col-span-2 text-sm text-muted-foreground text-center">No available ports for this device.</p>
           )}
         </div>
       </DialogContent>
     </Dialog>
   );
 }
-
-      
