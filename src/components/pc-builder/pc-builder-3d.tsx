@@ -628,7 +628,7 @@ export function PCBuilder3D() {
     scene.add(deskGroup);
 
     const tower = createComponent('cpu-tower', 'central-unit', 'Central Unit', 
-      [-3, DESK_LEVEL + 2.0, 1.5],
+      [-3, DESK_LEVEL + 2.0, -1.5],
       createTower
     );
     tower.userData.inScene = true;
@@ -651,7 +651,7 @@ export function PCBuilder3D() {
 
 
     const monitor = createComponent('monitor', 'monitor', 'Output Device: Monitor',
-        [0, DESK_LEVEL + 2.24, 1.5],
+        [0, DESK_LEVEL + 2.24, -1.5],
         createMonitor
     );
     draggableObjectsRef.current.push(monitor);
@@ -659,7 +659,7 @@ export function PCBuilder3D() {
 
 
     const powerStrip = createComponent('power-strip', 'power', 'Power Strip', 
-      [3, 0.2, 1.5],
+      [3, 0.2, -1.5],
       createPowerStrip
     );
     draggableObjectsRef.current.push(powerStrip);
