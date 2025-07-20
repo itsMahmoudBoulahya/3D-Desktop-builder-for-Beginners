@@ -33,7 +33,7 @@ export function PCBuilder3D() {
   
   const draggableObjectsRef = useRef<DraggableObject[]>([]);
   const portsRef = useRef<PortObject[]>([]);
-  const connectionsRef = useRef<Map<string, { line: THREE.Line, toPortId: string }>>(new Map());
+  const connectionsRef = useRef<Map<string, { line: THREE.Line, toPortId: string }[]>>(new Map());
   
   const selectedObjectForDragRef = useRef<DraggableObject | null>(null);
   const planeRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
@@ -394,12 +394,25 @@ export function PCBuilder3D() {
       isCorrect = true;
     }
     
-    if (connectionsRef.current.has(object.name)) {
-        const existing = connectionsRef.current.get(object.name)!;
-        sceneRef.current.remove(existing.line);
-        const oldPort = portsRef.current.find(p => p.name === existing.toPortId);
-        if(oldPort) oldPort.userData.connectedTo = null;
-        connectionsRef.current.delete(object.name);
+    // Check if a connection from this device type to this port type already exists to prevent duplicates
+    const existingConnections = connectionsRef.current.get(object.name) || [];
+    const isDuplicate = existingConnections.some(conn => {
+        const existingPort = portsRef.current.find(p => p.name === conn.toPortId);
+        if (!existingPort) return false;
+
+        const isPowerToPower = port.userData.type.includes('power') && existingPort.userData.type.includes('power');
+        const isDataToData = !port.userData.type.includes('power') && !existingPort.userData.type.includes('power');
+        
+        return isPowerToPower || isDataToData;
+    });
+
+    if (isDuplicate) {
+        toast({
+            variant: 'destructive',
+            title: "Connection already exists",
+            description: `A similar connection for this device already exists.`,
+        });
+        return;
     }
     
     const color = isCorrect ? 0x22c55e : 0xef4444;
@@ -413,10 +426,14 @@ export function PCBuilder3D() {
     const material = new THREE.LineBasicMaterial({ color, linewidth: 3 });
     const geometry = new THREE.BufferGeometry().setFromPoints([startPoint, endPoint]);
     const line = new THREE.Line(geometry, material);
-    line.name = `line_${object.name}`;
+    line.name = `line_${object.name}_to_${port.name}`;
     sceneRef.current.add(line);
-
-    connectionsRef.current.set(object.name, { line, toPortId: port.name });
+    
+    const newConnection = { line, toPortId: port.name };
+    if (!connectionsRef.current.has(object.name)) {
+        connectionsRef.current.set(object.name, []);
+    }
+    connectionsRef.current.get(object.name)!.push(newConnection);
     port.userData.connectedTo = object.name;
     
     if (isCorrect) {
@@ -429,7 +446,8 @@ export function PCBuilder3D() {
         });
         setTimeout(() => {
             sceneRef.current.remove(line);
-            connectionsRef.current.delete(object.name);
+            const connections = connectionsRef.current.get(object.name)!.filter(c => c.line !== line);
+            connectionsRef.current.set(object.name, connections);
             port.userData.connectedTo = null;
         }, 500);
     }
@@ -658,26 +676,28 @@ export function PCBuilder3D() {
 
       controlsRef.current?.update();
 
-      connectionsRef.current.forEach((conn, objectId) => {
-          const obj = scene.getObjectByName(objectId) as DraggableObject;
-          const port = portsRef.current.find(p => p.name === conn.toPortId) as PortObject;
-          if (obj && port && conn.line.geometry.attributes.position) {
-              const positions = conn.line.geometry.attributes.position.array as Float32Array;
-              const start = new THREE.Vector3();
-              obj.getWorldPosition(start);
-              const boundingBox = new THREE.Box3().setFromObject(obj);
-              const height = boundingBox.max.y - boundingBox.min.y;
-              start.y = obj.position.y - height / 2 + 0.1;
+      connectionsRef.current.forEach((connections, objectId) => {
+        connections.forEach(conn => {
+            const obj = scene.getObjectByName(objectId) as DraggableObject;
+            const port = portsRef.current.find(p => p.name === conn.toPortId) as PortObject;
+            if (obj && port && conn.line.geometry.attributes.position) {
+                const positions = conn.line.geometry.attributes.position.array as Float32Array;
+                const start = new THREE.Vector3();
+                obj.getWorldPosition(start);
+                const boundingBox = new THREE.Box3().setFromObject(obj);
+                const height = boundingBox.max.y - boundingBox.min.y;
+                start.y = obj.position.y - height / 2 + 0.1;
 
-              const end = port.getWorldPosition(new THREE.Vector3());
-              positions[0] = start.x;
-              positions[1] = start.y;
-              positions[2] = start.z;
-              positions[3] = end.x;
-              positions[4] = end.y;
-              positions[5] = end.z;
-              conn.line.geometry.attributes.position.needsUpdate = true;
-          }
+                const end = port.getWorldPosition(new THREE.Vector3());
+                positions[0] = start.x;
+                positions[1] = start.y;
+                positions[2] = start.z;
+                positions[3] = end.x;
+                positions[4] = end.y;
+                positions[5] = end.z;
+                conn.line.geometry.attributes.position.needsUpdate = true;
+            }
+        });
       });
       
       rendererRef.current.render(scene, cameraRef.current);
@@ -882,5 +902,3 @@ export function PCBuilder3D() {
     </div>
   );
 }
-
-      
