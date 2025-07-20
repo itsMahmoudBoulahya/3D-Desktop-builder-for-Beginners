@@ -578,7 +578,6 @@ export function PCBuilder3D() {
 
     // Office Desk
     const deskGroup = new THREE.Group();
-    deskGroup.position.z = -16.5; // Move desk closer to the wall
     const tabletopMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 }); // SaddleBrown
     const legMaterial = new THREE.MeshStandardMaterial({ color: 0x696969, metalness: 0.8, roughness: 0.4 }); // DimGray
     
@@ -604,7 +603,7 @@ export function PCBuilder3D() {
     scene.add(deskGroup);
 
     const tower = createComponent('cpu-tower', 'central-unit', 'Central Unit', 
-      [-3, DESK_LEVEL + 2.0, -18],
+      [-3, DESK_LEVEL + 2.0, 1.5],
       createTower
     );
     tower.userData.inScene = true;
@@ -619,7 +618,7 @@ export function PCBuilder3D() {
     createPort('mic-in1', 'mic-in', ['mic'], tower, [-0.4, -0.5, -2.3], 0xff69b4);
 
     const powerStrip = createComponent('power-strip', 'power', 'Power Strip', 
-      [3, 0.2, -18],
+      [3, 0.2, 1.5],
       createPowerStrip
     );
     draggableObjectsRef.current.push(powerStrip);
