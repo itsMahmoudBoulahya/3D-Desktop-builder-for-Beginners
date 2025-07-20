@@ -26,7 +26,29 @@ export function ConnectionDialog({
 }: ConnectionDialogProps) {
   if (!device) return null;
 
-  const availablePorts = ports.filter(p => p.userData.connectedTo === null);
+  const getAvailablePorts = () => {
+    if (device.userData.type === 'power') { // This is the power strip itself
+      return ports.filter(p => p.userData.type === 'wall-power' && p.userData.connectedTo === null);
+    }
+    
+    // For devices that need power
+    if (['central-unit', 'monitor', 'printer', 'scanner', 'speakers'].includes(device.userData.type)) {
+       const powerPorts = ports.filter(p => p.userData.type === 'power-strip-outlet' && p.userData.connectedTo === null);
+       if(powerPorts.length > 0) return powerPorts;
+    }
+
+    // For other devices connecting to the CPU
+    return ports.filter(p => p.userData.accepts.includes(device.userData.type) && p.userData.connectedTo === null);
+  }
+
+  const availablePorts = getAvailablePorts();
+
+  const getPortParentName = (port: PortObject) => {
+    if (port.userData.type === 'wall-power') return "Wall";
+    if (port.userData.type.includes('power-strip')) return "Power Strip";
+    return "PC Tower";
+  }
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -34,7 +56,7 @@ export function ConnectionDialog({
         <DialogHeader>
           <DialogTitle>Connect {device.userData.info.split(': ')[1]}</DialogTitle>
           <DialogDescription>
-            Select a port on the CPU Tower to connect to.
+            Select a port to connect to.
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-4 py-4">
@@ -45,7 +67,7 @@ export function ConnectionDialog({
                 variant="outline"
                 onClick={() => onConnect(port.name)}
               >
-                {port.name.toUpperCase()} ({port.userData.type})
+                {port.name.replace(/-/g, ' ').replace(/\d/g, m => ` ${m}`).toUpperCase()} ({getPortParentName(port)})
               </Button>
             ))
           ) : (

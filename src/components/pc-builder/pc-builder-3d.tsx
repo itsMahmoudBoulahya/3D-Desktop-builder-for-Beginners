@@ -497,7 +497,7 @@ export function PCBuilder3D() {
     scene.background = new THREE.Color(0x87CEEB); // Sky blue background
 
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
-    camera.position.set(0, 10, 12);
+    camera.position.set(0, 8, 10);
     camera.lookAt(0, 2, 0);
     cameraRef.current = camera;
 
