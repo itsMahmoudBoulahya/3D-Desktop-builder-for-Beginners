@@ -388,7 +388,7 @@ export function PCBuilder3D() {
     let isCorrect = port.userData.accepts.includes(object.userData.type);
 
     // Special check for power connections
-    if (['central-unit', 'monitor', 'printer', 'scanner', 'speakers'].includes(object.userData.type) && port.userData.type === 'power-strip-outlet') {
+    if (['central-unit', 'monitor', 'printer', 'scanner'].includes(object.userData.type) && port.userData.type === 'power-strip-outlet') {
       isCorrect = true;
     } else if (object.userData.type === 'power' && port.userData.type === 'wall-power') {
       isCorrect = true;
@@ -616,13 +616,21 @@ export function PCBuilder3D() {
     tower.userData.inScene = true;
     draggableObjectsRef.current.push(tower);
     
-    createPort('usb1', 'usb', ['keyboard', 'mouse', 'printer', 'mic', 'webcam', 'scanner'], tower, [-0.7, 1.5, -2.3], 0x0077ff);
-    createPort('usb2', 'usb', ['keyboard', 'mouse', 'printer', 'mic', 'webcam', 'scanner'], tower, [-0.4, 1.5, -2.3], 0x0077ff);
+    const usbTypes = ['keyboard', 'mouse', 'printer', 'mic', 'webcam', 'scanner'];
+    createPort('usb1', 'usb', usbTypes, tower, [-0.7, 1.5, -2.3], 0x0077ff);
+    createPort('usb2', 'usb', usbTypes, tower, [-0.4, 1.5, -2.3], 0x0077ff);
+    createPort('usb3', 'usb', usbTypes, tower, [-0.7, 1.2, -2.3], 0x0077ff);
+    createPort('usb4', 'usb', usbTypes, tower, [-0.4, 1.2, -2.3], 0x0077ff);
+    createPort('usb5', 'usb', usbTypes, tower, [-0.7, 0.9, -2.3], 0x0077ff);
+    createPort('usb6', 'usb', usbTypes, tower, [-0.4, 0.9, -2.3], 0x0077ff);
+    
     createPort('hdmi1', 'hdmi', ['monitor'], tower, [0.2, 1.5, -2.3], 0xff8c00);
-    createPort('power1', 'power-tower', ['power-strip-outlet'], tower, [0.7, -2, -2.3], 0xdddd00); // Changed type
-    createPort('audio-out1', 'audio-out', ['headphones', 'speakers'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
-    createPort('audio-in1', 'audio-in', ['speakers'], tower, [-0.7, -0.2, -2.3], 0x32CD32);
-    createPort('mic-in1', 'mic-in', ['mic'], tower, [-0.4, -0.5, -2.3], 0xff69b4);
+    createPort('power-tower', 'power-tower', ['power-strip-outlet'], tower, [0.7, -2, -2.3], 0xdddd00);
+
+    createPort('audio-out', 'audio-out', ['headphones', 'speakers'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
+    createPort('audio-in', 'audio-in', [], tower, [-0.4, -0.5, -2.3], 0x0000ff);
+    createPort('mic-in', 'mic-in', ['mic'], tower, [-0.1, -0.5, -2.3], 0xff69b4);
+
 
     const monitor = createComponent('monitor', 'monitor', 'Output Device: Monitor',
         [0, DESK_LEVEL + 2.24, 1.5],
@@ -637,10 +645,11 @@ export function PCBuilder3D() {
       createPowerStrip
     );
     draggableObjectsRef.current.push(powerStrip);
-    createPort('power-strip-1', 'power-strip-outlet', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [-0.9, 0.21, 0], 0x111111);
-    createPort('power-strip-2', 'power-strip-outlet', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [-0.3, 0.21, 0], 0x111111);
-    createPort('power-strip-3', 'power-strip-outlet', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [0.3, 0.21, 0], 0x111111);
-    createPort('power-strip-4', 'power-strip-outlet', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [0.9, 0.21, 0], 0x111111);
+    const powerStripAccepts = ['central-unit', 'monitor', 'printer', 'scanner'];
+    createPort('power-strip-1', 'power-strip-outlet', powerStripAccepts, powerStrip, [-0.9, 0.21, 0], 0x111111);
+    createPort('power-strip-2', 'power-strip-outlet', powerStripAccepts, powerStrip, [-0.3, 0.21, 0], 0x111111);
+    createPort('power-strip-3', 'power-strip-outlet', powerStripAccepts, powerStrip, [0.3, 0.21, 0], 0x111111);
+    createPort('power-strip-4', 'power-strip-outlet', powerStripAccepts, powerStrip, [0.9, 0.21, 0], 0x111111);
 
 
     const animate = () => {
@@ -873,3 +882,5 @@ export function PCBuilder3D() {
     </div>
   );
 }
+
+      
