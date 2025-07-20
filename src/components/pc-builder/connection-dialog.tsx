@@ -27,12 +27,13 @@ export function ConnectionDialog({
   if (!device) return null;
 
   const getAvailablePorts = () => {
-    if (device.userData.type === 'power') { // This is the power strip itself
+    // For the power strip itself, it connects to the wall
+    if (device.userData.type === 'power') { 
       return ports.filter(p => p.userData.type === 'wall-power' && p.userData.connectedTo === null);
     }
     
-    // For devices that need power
-    if (['central-unit', 'monitor', 'printer', 'scanner', 'speakers'].includes(device.userData.type)) {
+    // For devices that need power (monitor, printer, scanner, speakers, and now the central-unit)
+    if (['monitor', 'printer', 'scanner', 'speakers', 'central-unit'].includes(device.userData.type)) {
        const powerPorts = ports.filter(p => p.userData.type === 'power-strip-outlet' && p.userData.connectedTo === null);
        if(powerPorts.length > 0) return powerPorts;
     }

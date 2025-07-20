@@ -385,7 +385,14 @@ export function PCBuilder3D() {
 
     if (!object || !port) return;
 
-    const isCorrect = port.userData.accepts.includes(object.userData.type);
+    let isCorrect = port.userData.accepts.includes(object.userData.type);
+
+    // Special check for power connections
+    if (['central-unit', 'monitor', 'printer', 'scanner', 'speakers'].includes(object.userData.type) && port.userData.type === 'power-strip-outlet') {
+      isCorrect = true;
+    } else if (object.userData.type === 'power' && port.userData.type === 'wall-power') {
+      isCorrect = true;
+    }
     
     if (connectionsRef.current.has(object.name)) {
         const existing = connectionsRef.current.get(object.name)!;
@@ -612,10 +619,18 @@ export function PCBuilder3D() {
     createPort('usb1', 'usb', ['keyboard', 'mouse', 'printer', 'mic', 'webcam', 'scanner'], tower, [-0.7, 1.5, -2.3], 0x0077ff);
     createPort('usb2', 'usb', ['keyboard', 'mouse', 'printer', 'mic', 'webcam', 'scanner'], tower, [-0.4, 1.5, -2.3], 0x0077ff);
     createPort('hdmi1', 'hdmi', ['monitor'], tower, [0.2, 1.5, -2.3], 0xff8c00);
-    createPort('power1', 'power', ['power'], tower, [0.7, -2, -2.3], 0xdddd00);
+    createPort('power1', 'power-tower', ['power-strip-outlet'], tower, [0.7, -2, -2.3], 0xdddd00); // Changed type
     createPort('audio-out1', 'audio-out', ['headphones', 'speakers'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
     createPort('audio-in1', 'audio-in', ['speakers'], tower, [-0.7, -0.2, -2.3], 0x32CD32);
     createPort('mic-in1', 'mic-in', ['mic'], tower, [-0.4, -0.5, -2.3], 0xff69b4);
+
+    const monitor = createComponent('monitor', 'monitor', 'Output Device: Monitor',
+        [0, DESK_LEVEL + 2.24, 1.5],
+        createMonitor
+    );
+    draggableObjectsRef.current.push(monitor);
+    createPort('monitor-power', 'power', ['power-strip-outlet'], monitor, [0, -2.2, 0], 0xdddd00);
+
 
     const powerStrip = createComponent('power-strip', 'power', 'Power Strip', 
       [3, 0.2, 1.5],
@@ -805,7 +820,6 @@ export function PCBuilder3D() {
   }, [createComponent, createPort, handleConnection, toast]);
 
   const onConnectClick = () => {
-    if (selectedComponent && selectedComponent.name === 'cpu-tower') return;
     setConnectionDialogOpen(true);
   }
 
@@ -828,7 +842,7 @@ export function PCBuilder3D() {
           {tooltip.content}
         </div>
       )}
-      {selectedComponent && selectedComponent.name !== 'cpu-tower' && (
+      {selectedComponent && (
           <div className='absolute bottom-5 left-1/2 -translate-x-1/2 bg-card p-4 rounded-lg shadow-2xl border flex items-center gap-4'>
               <p className='font-semibold text-card-foreground'>Selected: {selectedComponent.userData.info.split(': ')[1] || selectedComponent.userData.info}</p>
               <Button onClick={onConnectClick}>Connect</Button>
