@@ -78,7 +78,7 @@ export function PCBuilder3D() {
 
   const createTower = () => {
     const group = new THREE.Group();
-    const caseMaterial = new THREE.MeshStandardMaterial({ color: 0x333842 });
+    const caseMaterial = new THREE.MeshStandardMaterial({ color: 0x333842, metalness: 0.5, roughness: 0.6 });
     const caseMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 4.5), caseMaterial);
     caseMesh.castShadow = true;
     caseMesh.receiveShadow = true;
@@ -88,10 +88,17 @@ export function PCBuilder3D() {
     frontPanel.position.set(0, 2, 2.26);
     group.add(frontPanel);
     
-    const powerButton = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 16), new THREE.MeshStandardMaterial({ color: 0x00aaff }));
+    const powerButton = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 16), new THREE.MeshStandardMaterial({ color: 0x00aaff, emissive: 0x00aaff, emissiveIntensity: 0.5 }));
     powerButton.position.set(0, 2.35, 2.26);
     powerButton.rotation.x = Math.PI / 2;
     group.add(powerButton);
+
+    const ventMaterial = new THREE.MeshBasicMaterial({ color: 0x111111 });
+    for (let i = 0; i < 10; i++) {
+        const vent = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.05), ventMaterial);
+        vent.position.set(0, 1.5 - i * 0.2, 2.26);
+        group.add(vent);
+    }
 
     group.scale.set(0.8, 0.8, 0.8);
     return group;
@@ -100,7 +107,7 @@ export function PCBuilder3D() {
   const createMonitor = () => {
     const group = new THREE.Group();
     const screenMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.2 });
-    const frameMaterial = new THREE.MeshStandardMaterial({ color: 0x555b6e });
+    const frameMaterial = new THREE.MeshStandardMaterial({ color: 0x555b6e, roughness: 0.4 });
 
     const screen = new THREE.Mesh(new THREE.BoxGeometry(4.3, 3.3, 0.1), screenMaterial);
     screen.position.z = -0.1;
@@ -125,8 +132,8 @@ export function PCBuilder3D() {
   
   const createKeyboard = () => {
     const group = new THREE.Group();
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x555b6e });
-    const keyMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x555b6e, roughness: 0.5 });
+    const keyMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.2 });
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.2, 1.2), bodyMaterial);
     group.add(body);
@@ -146,8 +153,8 @@ export function PCBuilder3D() {
   
   const createMouse = () => {
       const group = new THREE.Group();
-      const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x555b6e });
-      const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+      const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x555b6e, roughness: 0.4 });
+      const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
 
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 1), bodyMaterial);
       group.add(body);
@@ -164,8 +171,8 @@ export function PCBuilder3D() {
   
   const createPrinter = () => {
       const group = new THREE.Group();
-      const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc });
-      const detailMaterial = new THREE.MeshStandardMaterial({ color: 0xbbbbbb });
+      const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.7 });
+      const detailMaterial = new THREE.MeshStandardMaterial({ color: 0xbbbbbb, roughness: 0.7 });
 
       const mainBody = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 2.5), bodyMaterial);
       group.add(mainBody);
@@ -185,16 +192,36 @@ export function PCBuilder3D() {
   
   const createPowerStrip = () => {
     const group = new THREE.Group();
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
-    
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.4, 0.8), bodyMaterial);
-    group.add(strip);
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.6 });
+    const outletMaterial = new THREE.MeshStandardMaterial({color: 0x222222});
 
-    const outletMaterial = new THREE.MeshStandardMaterial({color: 0x111111});
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.4, 0.8), bodyMaterial);
+    strip.castShadow = true;
+    strip.receiveShadow = true;
+    group.add(strip);
+    
     for(let i=0; i < 4; i++) {
-        const outlet = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.5), outletMaterial);
-        outlet.position.set(-0.9 + i * 0.6, 0.21, 0);
-        group.add(outlet);
+        const outletGroup = new THREE.Group();
+        outletGroup.position.set(-0.9 + i * 0.6, 0.21, 0);
+
+        const outletBase = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.02, 0.55), outletMaterial);
+        outletGroup.add(outletBase);
+
+        const groundGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.03, 16);
+        const ground = new THREE.Mesh(groundGeo, outletMaterial);
+        ground.rotation.x = Math.PI / 2;
+        ground.position.y = 0.01;
+        outletGroup.add(ground);
+
+        const slotGeo = new THREE.BoxGeometry(0.03, 0.03, 0.15);
+        const slot1 = new THREE.Mesh(slotGeo, outletMaterial);
+        slot1.position.set(-0.1, 0.01, 0);
+        outletGroup.add(slot1);
+        const slot2 = new THREE.Mesh(slotGeo, outletMaterial);
+        slot2.position.set(0.1, 0.01, 0);
+        outletGroup.add(slot2);
+        
+        group.add(outletGroup);
     }
     
     group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
@@ -204,7 +231,7 @@ export function PCBuilder3D() {
 
   const createHeadphones = () => {
     const group = new THREE.Group();
-    const material = new THREE.MeshStandardMaterial({ color: 0x4a4a4a });
+    const material = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.5, metalness: 0.2 });
   
     // Headband
     const path = new THREE.CatmullRomCurve3([
@@ -240,7 +267,7 @@ export function PCBuilder3D() {
   
   const createMicrophone = () => {
     const group = new THREE.Group();
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x555b6e });
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x555b6e, roughness: 0.6 });
     const headMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
 
     const standBase = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 0.2, 32), bodyMaterial);
@@ -262,14 +289,35 @@ export function PCBuilder3D() {
 
   const createSpeakers = () => {
     const group = new THREE.Group();
-    const material = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const material = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 });
+    const coneMaterial = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 });
     const speakerGeo = new THREE.BoxGeometry(0.8, 1.2, 0.8);
     
-    const speaker1 = new THREE.Mesh(speakerGeo, material);
+    const createSpeaker = () => {
+        const speakerGroup = new THREE.Group();
+        const body = new THREE.Mesh(speakerGeo, material);
+        speakerGroup.add(body);
+
+        const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.1, 32), coneMaterial);
+        cone.rotation.x = Math.PI / 2;
+        cone.position.z = 0.41;
+        cone.position.y = 0.2;
+        speakerGroup.add(cone);
+        
+        const tweeter = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 32), coneMaterial);
+        tweeter.rotation.x = Math.PI / 2;
+        tweeter.position.z = 0.41;
+        tweeter.position.y = -0.3;
+        speakerGroup.add(tweeter);
+
+        return speakerGroup;
+    }
+    
+    const speaker1 = createSpeaker();
     speaker1.position.x = -0.6;
     group.add(speaker1);
 
-    const speaker2 = new THREE.Mesh(speakerGeo, material);
+    const speaker2 = createSpeaker();
     speaker2.position.x = 0.6;
     group.add(speaker2);
 
@@ -279,8 +327,8 @@ export function PCBuilder3D() {
 
   const createWebcam = () => {
     const group = new THREE.Group();
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
-    const lensMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.5 });
+    const lensMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.8 });
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 0.3), bodyMaterial);
     group.add(body);
@@ -297,8 +345,8 @@ export function PCBuilder3D() {
 
   const createScanner = () => {
     const group = new THREE.Group();
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
-    const glassMaterial = new THREE.MeshStandardMaterial({ color: 0x88aaff, transparent: true, opacity: 0.3 });
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.8 });
+    const glassMaterial = new THREE.MeshStandardMaterial({ color: 0x88aaff, transparent: true, opacity: 0.3, roughness: 0.1 });
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.5, 2.5), bodyMaterial);
     group.add(body);
@@ -449,7 +497,7 @@ export function PCBuilder3D() {
     scene.background = new THREE.Color(0x87CEEB); // Sky blue background
 
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
-    camera.position.set(0, 10, 18);
+    camera.position.set(0, 10, 12);
     camera.lookAt(0, 2, 0);
     cameraRef.current = camera;
 
@@ -493,14 +541,46 @@ export function PCBuilder3D() {
     // Wall Outlet as a "port"
     const wallOutletGroup = new THREE.Group();
     wallOutletGroup.position.set(5, 2, -19.7);
+
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.1), new THREE.MeshStandardMaterial({color: 0xffffff}));
+    wallOutletGroup.add(plate);
+
+    const createOutlet = (yPos: number) => {
+      const outlet = new THREE.Group();
+      outlet.position.y = yPos;
+      
+      const socket = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.25, 0.05), new THREE.MeshStandardMaterial({color: 0x222222}));
+      socket.position.z = 0.05;
+      outlet.add(socket);
+
+      const groundGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.03, 16);
+      const ground = new THREE.Mesh(groundGeo, new THREE.MeshStandardMaterial({color: 0x222222}));
+      ground.rotation.x = Math.PI / 2;
+      ground.position.set(0, -0.05, 0.06);
+      outlet.add(ground);
+
+      const slotGeo = new THREE.BoxGeometry(0.03, 0.03, 0.1);
+      const slot1 = new THREE.Mesh(slotGeo, new THREE.MeshStandardMaterial({color: 0x222222}));
+      slot1.position.set(-0.1, 0.05, 0.06);
+      outlet.add(slot1);
+      const slot2 = slot1.clone();
+      slot2.position.x = 0.1;
+      outlet.add(slot2);
+
+      return outlet;
+    }
+    wallOutletGroup.add(createOutlet(0.15));
+    wallOutletGroup.add(createOutlet(-0.15));
+
     scene.add(wallOutletGroup);
-    createPort('wall-outlet', 'wall-power', ['power'], wallOutletGroup, [0, 0, 0], 0x111111);
+    createPort('wall-outlet', 'wall-power', ['power'], wallOutletGroup, [0, 0, 0], 0xffffff);
 
 
     // Office Desk
     const deskGroup = new THREE.Group();
-    const tabletopMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 }); // SaddleBrown
-    const legMaterial = new THREE.MeshStandardMaterial({ color: 0x696969 }); // DimGray
+    deskGroup.position.z = -16.5; // Move desk closer to the wall
+    const tabletopMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 }); // SaddleBrown
+    const legMaterial = new THREE.MeshStandardMaterial({ color: 0x696969, metalness: 0.8, roughness: 0.4 }); // DimGray
     
     const tabletop = new THREE.Mesh(new THREE.BoxGeometry(12, 0.3, 6), tabletopMaterial);
     tabletop.position.y = DESK_LEVEL;
@@ -524,7 +604,7 @@ export function PCBuilder3D() {
     scene.add(deskGroup);
 
     const tower = createComponent('cpu-tower', 'central-unit', 'Central Unit', 
-      [-3, DESK_LEVEL + 2.0, -2],
+      [-3, DESK_LEVEL + 2.0, -18],
       createTower
     );
     tower.userData.inScene = true;
@@ -533,7 +613,7 @@ export function PCBuilder3D() {
     createPort('usb1', 'usb', ['keyboard', 'mouse', 'printer', 'mic', 'webcam', 'scanner'], tower, [-0.7, 1.5, -2.3], 0x0077ff);
     createPort('usb2', 'usb', ['keyboard', 'mouse', 'printer', 'mic', 'webcam', 'scanner'], tower, [-0.4, 1.5, -2.3], 0x0077ff);
     createPort('hdmi1', 'hdmi', ['monitor'], tower, [0.2, 1.5, -2.3], 0xff8c00);
-    createPort('power1', 'power', ['power-strip'], tower, [0.7, -2, -2.3], 0xdddd00);
+    createPort('power1', 'power', ['power'], tower, [0.7, -2, -2.3], 0xdddd00);
     createPort('audio-out1', 'audio-out', ['headphones', 'speakers'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
     createPort('audio-in1', 'audio-in', ['speakers'], tower, [-0.7, -0.2, -2.3], 0x32CD32);
     createPort('mic-in1', 'mic-in', ['mic'], tower, [-0.4, -0.5, -2.3], 0xff69b4);
@@ -543,10 +623,10 @@ export function PCBuilder3D() {
       createPowerStrip
     );
     draggableObjectsRef.current.push(powerStrip);
-    createPort('power-strip-1', 'power-strip', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [-0.9, 0.21, 0], 0x111111);
-    createPort('power-strip-2', 'power-strip', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [-0.3, 0.21, 0], 0x111111);
-    createPort('power-strip-3', 'power-strip', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [0.3, 0.21, 0], 0x111111);
-    createPort('power-strip-4', 'power-strip', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [0.9, 0.21, 0], 0x111111);
+    createPort('power-strip-1', 'power-strip-outlet', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [-0.9, 0.21, 0], 0x111111);
+    createPort('power-strip-2', 'power-strip-outlet', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [-0.3, 0.21, 0], 0x111111);
+    createPort('power-strip-3', 'power-strip-outlet', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [0.3, 0.21, 0], 0x111111);
+    createPort('power-strip-4', 'power-strip-outlet', ['central-unit', 'monitor', 'printer', 'scanner', 'speakers'], powerStrip, [0.9, 0.21, 0], 0x111111);
 
 
     const animate = () => {
@@ -682,12 +762,11 @@ export function PCBuilder3D() {
             }
 
             setSelectedComponent(prevSelected => {
-                if (prevSelected && (!clickedObject || prevSelected.userData.id !== clickedObject.userData.id)) {
+                if (prevSelected) {
                     prevSelected.traverse(child => removeOutline(child));
                 }
                  if(clickedObject && prevSelected && clickedObject.userData.id === prevSelected.userData.id) {
-                    clickedObject.traverse(child => removeOutline(child));
-                    return null;
+                    return null; // Deselect if clicking the same object
                 }
 
                 if (clickedObject) {
