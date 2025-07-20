@@ -356,7 +356,7 @@ export function PCBuilder3D() {
 
       let newComponent: DraggableObject | null = null;
       switch(type) {
-        case 'monitor': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 1.4, dropPoint.z], createMonitor); break;
+        case 'monitor': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 2.24, dropPoint.z], createMonitor); break;
         case 'keyboard': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createKeyboard); break;
         case 'mouse': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createMouse); break;
         case 'printer': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.45, dropPoint.z], createPrinter); break;
