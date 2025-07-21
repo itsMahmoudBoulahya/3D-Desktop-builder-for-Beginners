@@ -1,12 +1,14 @@
 
 import React, { useMemo } from 'react';
-import { Monitor, Keyboard, Mouse, Printer, Zap, Headphones, Mic, Speaker, Camera, Scan, Cpu, ArrowDownToLine, ArrowUpFromLine, Server, HelpCircle } from 'lucide-react';
+import { Monitor, Keyboard, Mouse, Printer, Zap, Headphones, Mic, Speaker, Camera, Scan, Cpu, ArrowDownToLine, ArrowUpFromLine, Server, HelpCircle, RotateCcw } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import { useSorting } from './sorting-context';
 import type { Component, Category } from './sorting-context';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Button } from '../ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 type DraggableComponentProps = {
   component: Component;
@@ -50,7 +52,7 @@ const DraggableComponent = ({ component, onDragStart, draggable: isDraggable, is
   if (isUnsorted) {
     return (
       <DropdownMenu>
-        <DropdownMenuTrigger asChild onContextMenu={(e) => e.preventDefault()}>
+        <DropdownMenuTrigger asChild onContextMenu={(e) => { e.preventDefault(); if (!isDraggable) e.stopPropagation(); }}>
           {componentDiv}
         </DropdownMenuTrigger>
         <DropdownMenuContent>
@@ -79,7 +81,7 @@ const DropZone = ({ children, onDrop, onDragOver, isEmpty }: { children: React.R
 );
 
 export function ComponentLibrary() {
-  const { allComponents, placements, setPlacements, results } = useSorting();
+  const { allComponents, placements, setPlacements, results, resetTest } = useSorting();
 
   const handleComponentDragStart = (e: React.DragEvent<HTMLDivElement>, component: Component) => {
     e.dataTransfer.setData('componentId', component.id);
@@ -122,19 +124,33 @@ export function ComponentLibrary() {
     <ScrollArea className="h-full px-2">
       <div className="space-y-4">
         <div className="p-2 border border-dashed rounded-lg bg-muted/50">
-          <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2 pl-1"><HelpCircle className="h-4 w-4" />Composants non triés</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground pl-1"><HelpCircle className="h-4 w-4" />Composants non triés</h3>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={resetTest}>
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Réinitialiser le tri</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <div className="grid grid-cols-3 gap-2">
             {unsorted.map(c => 
               <DraggableComponent 
                 key={c.id} 
                 component={c} 
                 onDragStart={(e) => handleComponentDragStart(e, c)} 
-                draggable={true} 
+                draggable={!isTestComplete} 
                 isUnsorted={true}
               />
             )}
           </div>
-          {unsorted.length === 0 && <p className="text-xs text-muted-foreground p-4 text-center w-full">Tous les composants ont été triés ! Glissez-les sur la scène 3D pour commencer à construire.</p>}
+          {unsorted.length === 0 && <p className="text-xs text-muted-foreground p-4 text-center w-full">Tous les composants ont été triés ! Vous pouvez passer à l'onglet "Tests" pour vérifier vos réponses, ou glisser les composants sur la scène 3D.</p>}
         </div>
 
         <Accordion type="multiple" className="w-full" defaultValue={Object.keys(categoryConfig)}>

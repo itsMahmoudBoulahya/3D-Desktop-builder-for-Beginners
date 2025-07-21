@@ -8,13 +8,13 @@ import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Terminal } from 'lucide-react';
 
 export function SortingTest() {
-  const { checkAnswers, resetTest, results } = useSorting();
+  const { checkAnswers, results, allComponents } = useSorting();
 
   const isTestComplete = useMemo(() => {
-    const totalComponents = 11; // Hardcoded for now, should come from context ideally
+    const totalComponents = allComponents.length;
     const correctCount = Object.values(results).filter(r => r === 'correct').length;
     return Object.keys(results).length > 0 && correctCount === totalComponents;
-  }, [results]);
+  }, [results, allComponents]);
 
   const hasBeenTested = Object.keys(results).length > 0;
 
@@ -28,7 +28,6 @@ export function SortingTest() {
       </div>
       <div className="flex gap-2">
         <Button onClick={checkAnswers} size="sm">Vérifier</Button>
-        <Button variant="outline" onClick={resetTest} size="sm">Réinitialiser</Button>
       </div>
       
       {hasBeenTested && (

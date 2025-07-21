@@ -53,7 +53,7 @@ export const SortingProvider = ({ children }: { children: ReactNode }) => {
       if (placements[component.id] !== 'unsorted') {
         newResults[component.id] = placements[component.id] === component.category ? 'correct' : 'incorrect';
       } else {
-        newResults[component.id] = null;
+        newResults[component.id] = 'incorrect'; // Mark unsorted as incorrect
       }
     });
     setResults(newResults);
