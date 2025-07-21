@@ -16,7 +16,6 @@ import { PCBuilder3D } from '@/components/pc-builder/pc-builder-3d';
 import { ComponentLibrary } from '../pc-builder/component-library';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
-import { SortingTest } from '../pc-builder/sorting-test';
 
 export function MainLayout() {
   return (
@@ -32,10 +31,9 @@ export function MainLayout() {
         </SidebarHeader>
         <SidebarContent className="p-0">
           <Tabs defaultValue="composants" className="flex flex-col h-full">
-            <TabsList className="grid w-full grid-cols-3 mx-auto max-w-[calc(100%-2rem)] rounded-lg">
+            <TabsList className="grid w-full grid-cols-2 mx-auto max-w-[calc(100%-2rem)] rounded-lg">
               <TabsTrigger value="instructions">Instructions</TabsTrigger>
               <TabsTrigger value="composants">Composants</TabsTrigger>
-              <TabsTrigger value="tests">Tests</TabsTrigger>
             </TabsList>
             <TabsContent value="instructions" className="flex-1 overflow-auto p-4">
               <h2 className="text-lg font-semibold mb-2">📝 Instructions de l’activité :</h2>
@@ -84,9 +82,6 @@ export function MainLayout() {
             </TabsContent>
             <TabsContent value="composants" className="flex-1 overflow-auto">
               <ComponentLibrary />
-            </TabsContent>
-            <TabsContent value="tests" className="flex-1 overflow-auto p-4">
-              <SortingTest />
             </TabsContent>
           </Tabs>
         </SidebarContent>
