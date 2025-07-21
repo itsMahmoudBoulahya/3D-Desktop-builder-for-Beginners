@@ -14,7 +14,7 @@ interface ConnectionDialogProps {
   onOpenChange: (isOpen: boolean) => void;
   device: DraggableObject | null;
   ports: PortObject[];
-  onConnect: (portId: string) => void;
+  onConnect: (portId: string, connectionType: 'power' | 'data') => void;
 }
 
 export function ConnectionDialog({
@@ -28,48 +28,15 @@ export function ConnectionDialog({
 
   const getAvailablePorts = () => {
     const deviceType = device.userData.type;
-    let availablePorts: PortObject[] = [];
-
-    // Rule 1: The Power Strip connects to the Wall Outlet
-    if (deviceType === 'power') {
-      return ports.filter(
-        (p) => p.userData.type === 'wall-power' && p.userData.connectedTo === null
-      );
-    }
-
-    // Rule 2: Devices that need power connect to the Power Strip
-    const needsPower = ['monitor', 'printer', 'scanner', 'central-unit'].includes(deviceType);
-    if (needsPower) {
-      const powerPorts = ports.filter(
-        (p) =>
-          p.userData.type === 'power-strip-outlet' &&
-          p.userData.connectedTo === null
-      );
-      availablePorts.push(...powerPorts);
-    }
-
-    // Rule 3: Devices that need a data connection connect to the PC Tower
-    const needsData = [
-      'monitor', 'keyboard', 'mouse', 'printer', 'mic',
-      'webcam', 'scanner', 'speakers', 'headphones'
-    ].includes(deviceType);
-    if (needsData) {
-      const dataPorts = ports.filter(
-        (p) =>
-          !p.userData.type.includes('power') && // Exclude all power-related ports
-          p.userData.accepts.includes(deviceType) &&
-          p.userData.connectedTo === null
-      );
-      availablePorts.push(...dataPorts);
-    }
-    
-    // Filter out duplicate ports if any (shouldn't happen with this logic, but good practice)
-    const uniquePortIds = new Set();
-    return availablePorts.filter(port => {
-      if (uniquePortIds.has(port.name)) {
+    return ports.filter(port => {
+      // Port is already connected
+      if (port.userData.connectedTo !== null) {
         return false;
       }
-      uniquePortIds.add(port.name);
+      // Port accepts the device type
+      if (!port.userData.accepts.includes(deviceType)) {
+        return false;
+      }
       return true;
     });
   };
@@ -77,11 +44,16 @@ export function ConnectionDialog({
   const availablePorts = getAvailablePorts();
 
   const getPortParentName = (port: PortObject) => {
+    let parent = port.parent;
+    while (parent && !parent.userData.id) {
+        parent = parent.parent;
+    }
+    if (parent && parent.userData.info) {
+        return parent.userData.info.split(': ')[1] || parent.userData.info;
+    }
     if (port.userData.type === 'wall-power') return "Wall";
-    if (port.userData.type.includes('power-strip')) return "Power Strip";
-    return "PC Tower";
+    return "Unknown";
   }
-
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -98,7 +70,7 @@ export function ConnectionDialog({
               <Button
                 key={port.name}
                 variant="outline"
-                onClick={() => onConnect(port.name)}
+                onClick={() => onConnect(port.name, port.userData.connectionType)}
               >
                 {port.name.replace(/-/g, ' ').replace(/\d/g, m => ` ${m}`).toUpperCase()} ({getPortParentName(port)})
               </Button>

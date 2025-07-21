@@ -11,7 +11,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescript
 export type DraggableObject = THREE.Group;
 export type PortObject = THREE.Mesh;
 
-const CONNECTION_DISTANCE_THRESHOLD = 2.0;
 const DESK_LEVEL = 3.5;
 
 export function PCBuilder3D() {
@@ -33,7 +32,7 @@ export function PCBuilder3D() {
   
   const draggableObjectsRef = useRef<DraggableObject[]>([]);
   const portsRef = useRef<PortObject[]>([]);
-  const connectionsRef = useRef<Map<string, { line: THREE.Line, toPortId: string }[]>>(new Map());
+  const connectionsRef = useRef<Map<string, { line: THREE.Line, toPortId: string, connectionType: 'power' | 'data' }[]>>(new Map());
   
   const selectedObjectForDragRef = useRef<DraggableObject | null>(null);
   const planeRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
@@ -364,6 +363,7 @@ export function PCBuilder3D() {
   const createPort = useCallback((
     name: string,
     type: string,
+    connectionType: 'power' | 'data',
     accepts: string[],
     parent: THREE.Object3D,
     position: [number, number, number],
@@ -373,45 +373,28 @@ export function PCBuilder3D() {
     const portMaterial = new THREE.MeshStandardMaterial({ color });
     const port = new THREE.Mesh(portGeometry, portMaterial) as PortObject;
     port.name = name;
-    port.userData = { id: name, type, accepts, connectedTo: null };
+    port.userData = { id: name, type, connectionType, accepts, connectedTo: null };
     port.position.set(...position);
     parent.add(port);
     portsRef.current.push(port);
   }, []);
   
-  const handleConnection = useCallback((deviceId: string, portId: string) => {
+  const handleConnection = useCallback((deviceId: string, portId: string, connectionType: 'power' | 'data') => {
     const object = sceneRef.current.getObjectByName(deviceId) as DraggableObject;
     const port = portsRef.current.find(p => p.name === portId);
 
     if (!object || !port) return;
 
-    let isCorrect = port.userData.accepts.includes(object.userData.type);
+    let isCorrect = port.userData.accepts.includes(object.userData.type) && port.userData.connectionType === connectionType;
 
-    if (['monitor', 'printer', 'scanner', 'central-unit'].includes(object.userData.type) && port.userData.type === 'power-strip-outlet') {
-      isCorrect = true;
-    } else if (object.userData.type === 'power' && port.userData.type === 'wall-power') {
-      isCorrect = true;
-    }
-    
     const existingConnections = connectionsRef.current.get(object.name) || [];
-    const isDuplicate = existingConnections.some(conn => {
-        const existingPort = portsRef.current.find(p => p.name === conn.toPortId);
-        if (!existingPort) return false;
-        
-        const isNewConnectionPower = port.userData.type.includes('power');
-        const isExistingConnectionPower = existingPort.userData.type.includes('power');
-
-        if (isNewConnectionPower && isExistingConnectionPower) return true; // Already has a power connection
-        if (!isNewConnectionPower && !isExistingConnectionPower) return true; // Already has a data connection
-
-        return false;
-    });
+    const isDuplicate = existingConnections.some(conn => conn.connectionType === connectionType);
 
     if (isDuplicate) {
         toast({
             variant: 'destructive',
             title: "Connection already exists",
-            description: `A connection of this type already exists for this device.`,
+            description: `A ${connectionType} connection already exists for this device.`,
         });
         setConnectionDialogOpen(false);
         return;
@@ -431,9 +414,8 @@ export function PCBuilder3D() {
     line.name = `line_${object.name}_to_${port.name}`;
     sceneRef.current.add(line);
     
-    const newConnection = { line, toPortId: port.name };
-    const currentConnections = connectionsRef.current.get(object.name) || [];
-    connectionsRef.current.set(object.name, [...currentConnections, newConnection]);
+    const newConnection = { line, toPortId: port.name, connectionType };
+    connectionsRef.current.set(object.name, [...existingConnections, newConnection]);
     port.userData.connectedTo = object.name;
     
     if (isCorrect) {
@@ -566,6 +548,7 @@ export function PCBuilder3D() {
 
     // Wall Outlet as a "port"
     const wallOutletGroup = new THREE.Group();
+    wallOutletGroup.userData = { id: 'wall', info: 'Wall' };
     wallOutletGroup.position.set(5, 2, -19.7);
 
     const plate = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.1), new THREE.MeshStandardMaterial({color: 0xffffff}));
@@ -599,7 +582,7 @@ export function PCBuilder3D() {
     wallOutletGroup.add(createOutlet(-0.15));
 
     scene.add(wallOutletGroup);
-    createPort('wall-outlet', 'wall-power', ['power'], wallOutletGroup, [0, 0, 0], 0xffffff);
+    createPort('wall-outlet', 'wall-power', 'power', ['power'], wallOutletGroup, [0, 0, 0], 0x111111);
 
 
     // Office Desk
@@ -636,29 +619,26 @@ export function PCBuilder3D() {
     draggableObjectsRef.current.push(tower);
     
     const usbTypes = ['keyboard', 'mouse', 'printer', 'mic', 'webcam', 'scanner'];
-    createPort('usb1', 'usb', usbTypes, tower, [-0.7, 1.5, -2.3], 0x0077ff);
-    createPort('usb2', 'usb', usbTypes, tower, [-0.4, 1.5, -2.3], 0x0077ff);
-    createPort('usb3', 'usb', usbTypes, tower, [-0.7, 1.2, -2.3], 0x0077ff);
-    createPort('usb4', 'usb', usbTypes, tower, [-0.4, 1.2, -2.3], 0x0077ff);
-    createPort('usb5', 'usb', usbTypes, tower, [-0.7, 0.9, -2.3], 0x0077ff);
-    createPort('usb6', 'usb', usbTypes, tower, [-0.4, 0.9, -2.3], 0x0077ff);
+    createPort('usb1', 'usb', 'data', usbTypes, tower, [-0.7, 1.5, -2.3], 0x0077ff);
+    createPort('usb2', 'usb', 'data', usbTypes, tower, [-0.4, 1.5, -2.3], 0x0077ff);
+    createPort('usb3', 'usb', 'data', usbTypes, tower, [-0.7, 1.2, -2.3], 0x0077ff);
+    createPort('usb4', 'usb', 'data', usbTypes, tower, [-0.4, 1.2, -2.3], 0x0077ff);
+    createPort('usb5', 'usb', 'data', usbTypes, tower, [-0.7, 0.9, -2.3], 0x0077ff);
+    createPort('usb6', 'usb', 'data', usbTypes, tower, [-0.4, 0.9, -2.3], 0x0077ff);
     
-    createPort('hdmi1', 'hdmi', ['monitor'], tower, [0.2, 1.5, -2.3], 0xff8c00);
-    createPort('power-tower', 'power-tower', ['central-unit'], tower, [0.7, -2, -2.3], 0xdddd00);
+    createPort('hdmi1', 'hdmi', 'data', ['monitor'], tower, [0.2, 1.5, -2.3], 0xff8c00);
+    createPort('power-tower', 'power-in', 'power', ['central-unit'], tower, [0.7, -2, -2.3], 0xdddd00);
 
-    createPort('audio-out', 'audio-out', ['headphones', 'speakers'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
-    createPort('audio-in', 'audio-in', [], tower, [-0.4, -0.5, -2.3], 0x0000ff);
-    createPort('mic-in', 'mic-in', ['mic'], tower, [-0.1, -0.5, -2.3], 0xff69b4);
-
+    createPort('audio-out', 'audio-out', 'data', ['headphones', 'speakers'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
+    createPort('mic-in', 'mic-in', 'data', ['mic'], tower, [-0.1, -0.5, -2.3], 0xff69b4);
 
     const monitor = createComponent('monitor', 'monitor', 'Output Device: Monitor',
         [0, DESK_LEVEL + 2.8, -2],
         createMonitor
     );
     draggableObjectsRef.current.push(monitor);
-    createPort('monitor-power', 'power', ['monitor'], monitor, [0, -2.2, 0], 0xdddd00);
-    createPort('monitor-hdmi', 'hdmi_in', ['monitor'], monitor, [0.5, -2.2, 0], 0xff8c00);
-
+    createPort('monitor-power', 'power-in', 'power', ['monitor'], monitor, [0, -2.2, 0], 0xdddd00);
+    createPort('monitor-hdmi', 'hdmi-in', 'data', ['monitor'], monitor, [0.5, -2.2, 0], 0xff8c00);
 
     const powerStrip = createComponent('power-strip', 'power', 'Power Strip', 
       [3, 0.2, -2],
@@ -666,11 +646,10 @@ export function PCBuilder3D() {
     );
     draggableObjectsRef.current.push(powerStrip);
     const powerStripAccepts = ['central-unit', 'monitor', 'printer', 'scanner'];
-    createPort('power-strip-1', 'power-strip-outlet', powerStripAccepts, powerStrip, [-0.9, 0.21, 0], 0x111111);
-    createPort('power-strip-2', 'power-strip-outlet', powerStripAccepts, powerStrip, [-0.3, 0.21, 0], 0x111111);
-    createPort('power-strip-3', 'power-strip-outlet', powerStripAccepts, powerStrip, [0.3, 0.21, 0], 0x111111);
-    createPort('power-strip-4', 'power-strip-outlet', powerStripAccepts, powerStrip, [0.9, 0.21, 0], 0x111111);
-
+    createPort('power-strip-1', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [-0.9, 0.21, 0], 0x111111);
+    createPort('power-strip-2', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [-0.3, 0.21, 0], 0x111111);
+    createPort('power-strip-3', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [0.3, 0.21, 0], 0x111111);
+    createPort('power-strip-4', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [0.9, 0.21, 0], 0x111111);
 
     const animate = () => {
       if (!rendererRef.current || !cameraRef.current) return;
@@ -825,12 +804,10 @@ export function PCBuilder3D() {
             if (clickedObject && (!prevSelected || clickedObject.userData.id !== prevSelected.userData.id)) {
                 // A new object is selected
                 clickedObject.traverse(child => applyOutline(child));
-                setConnectionDialogOpen(false); // Close dialog if switching objects
                 return clickedObject;
             }
             
-            // If the same object is clicked again or nothing is clicked
-            // setConnectionDialogOpen(false); // This was closing the dialog on second click
+            setConnectionDialogOpen(false);
             return null;
         });
     };
@@ -884,9 +861,10 @@ export function PCBuilder3D() {
         isOpen={isConnectionDialogOpen}
         onOpenChange={(isOpen) => {
             setConnectionDialogOpen(isOpen);
-            if (!isOpen) {
-                // If closing dialog, keep component selected
-                // But if user clicks elsewhere, it will deselect
+            if (!isOpen && selectedComponent) {
+                // If closing dialog, deselect component
+                selectedComponent.traverse(child => removeOutline(child));
+                setSelectedComponent(null);
             }
         }}
         device={selectedComponent}
