@@ -28,58 +28,50 @@ export function ConnectionDialog({
 
   const getAvailablePorts = () => {
     const deviceType = device.userData.type;
+    let availablePorts: PortObject[] = [];
 
-    // For the power strip itself, it connects to the wall
+    // Rule 1: The Power Strip connects to the Wall Outlet
     if (deviceType === 'power') {
       return ports.filter(
         (p) => p.userData.type === 'wall-power' && p.userData.connectedTo === null
       );
     }
 
-    // Determine what kind of connections the device needs
+    // Rule 2: Devices that need power connect to the Power Strip
     const needsPower = ['monitor', 'printer', 'scanner', 'central-unit'].includes(deviceType);
-    const needsData = [
-      'monitor', 'keyboard', 'mouse', 'printer', 'mic',
-      'webcam', 'scanner', 'speakers', 'headphones'
-    ].includes(deviceType);
-
-    let availablePorts: PortObject[] = [];
-
-    // Find available power ports if needed
     if (needsPower) {
       const powerPorts = ports.filter(
         (p) =>
           p.userData.type === 'power-strip-outlet' &&
-          p.userData.accepts.includes(deviceType) &&
           p.userData.connectedTo === null
       );
       availablePorts.push(...powerPorts);
     }
 
-    // Find available data ports if needed
+    // Rule 3: Devices that need a data connection connect to the PC Tower
+    const needsData = [
+      'monitor', 'keyboard', 'mouse', 'printer', 'mic',
+      'webcam', 'scanner', 'speakers', 'headphones'
+    ].includes(deviceType);
     if (needsData) {
-      if (deviceType === 'monitor') {
-        // Monitor connects to HDMI on the tower
-        const hdmiPorts = ports.filter(
-          (p) =>
-            p.userData.type === 'hdmi' &&
-            p.userData.accepts.includes(deviceType) &&
-            p.userData.connectedTo === null
-        );
-        availablePorts.push(...hdmiPorts);
-      } else {
-        // Other peripherals connect to ports that accept their type
-        const dataPorts = ports.filter(
-          (p) =>
-            p.userData.accepts.includes(deviceType) &&
-            !p.userData.type.includes('power') && // Exclude power ports from this check
-            p.userData.connectedTo === null
-        );
-        availablePorts.push(...dataPorts);
-      }
+      const dataPorts = ports.filter(
+        (p) =>
+          !p.userData.type.includes('power') && // Exclude all power-related ports
+          p.userData.accepts.includes(deviceType) &&
+          p.userData.connectedTo === null
+      );
+      availablePorts.push(...dataPorts);
     }
-
-    return availablePorts;
+    
+    // Filter out duplicate ports if any (shouldn't happen with this logic, but good practice)
+    const uniquePortIds = new Set();
+    return availablePorts.filter(port => {
+      if (uniquePortIds.has(port.name)) {
+        return false;
+      }
+      uniquePortIds.add(port.name);
+      return true;
+    });
   };
 
   const availablePorts = getAvailablePorts();
