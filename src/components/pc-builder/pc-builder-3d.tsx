@@ -301,11 +301,10 @@ export function PCBuilder3D() {
     const group = new THREE.Group();
     const material = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 });
     const coneMaterial = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 });
-    const speakerGeo = new THREE.BoxGeometry(0.8, 1.2, 0.8);
     
     const createSpeaker = () => {
         const speakerGroup = new THREE.Group();
-        const body = new THREE.Mesh(speakerGeo, material);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.8), material);
         body.name = 'selectable_mesh';
         speakerGroup.add(body);
 
@@ -401,37 +400,29 @@ export function PCBuilder3D() {
 
     if (!object || !port) return;
 
-    let isCorrect = port.userData.accepts.includes(object.userData.type) && port.userData.connectionType === connectionType;
-
     const existingConnections = connectionsRef.current.get(object.name) || [];
-    const isDuplicate = existingConnections.some(conn => {
-        const connPort = portsRef.current.find(p => p.name === conn.toPortId);
-        if (!connPort) return false;
+    const hasConnectionOfType = existingConnections.some(c => c.connectionType === connectionType);
 
-        // If it's a data connection, check if a data connection already exists
-        if(connectionType === 'data' && connPort.userData.connectionType === 'data') {
-            return true;
-        }
-
-        // If it's a power connection, check if a power connection already exists
-        if(connectionType === 'power' && connPort.userData.connectionType === 'power') {
-            return true;
-        }
-
-        return false;
-    });
-
-    
-    if (isDuplicate) {
+    if (hasConnectionOfType && connectionType !== 'power') { // Allow multiple power connections from strip, but not multiple data
         toast({
             variant: 'destructive',
             title: "Connection already exists",
             description: `A ${connectionType} connection for this device already exists.`,
         });
-        setConnectionDialogOpen(false);
         return;
     }
-    
+
+    if (port.userData.connectedTo) {
+      toast({
+            variant: 'destructive',
+            title: "Port is in use",
+            description: `This port is already connected to another device.`,
+        });
+        return;
+    }
+
+    const isCorrect = port.userData.accepts.includes(object.userData.type) && port.userData.connectionType === connectionType;
+
     const color = isCorrect ? 0x22c55e : 0xef4444;
     
     const startPoint = new THREE.Vector3();
@@ -736,8 +727,11 @@ export function PCBuilder3D() {
                 selectedObjectForDragRef.current.position.y = newY;
             } else { // Horizontal movement
                 if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
-                    selectedObjectForDragRef.current.position.x = intersectionRef.current.sub(offsetRef.current).x;
-                    selectedObjectForDragRef.current.position.z = intersectionRef.current.sub(offsetRef.current).z;
+                    selectedObjectForDragRef.current.position.set(
+                        intersectionRef.current.x - offsetRef.current.x,
+                        selectedObjectForDragRef.current.position.y,
+                        intersectionRef.current.z - offsetRef.current.z
+                    );
                 }
             }
         } else {
@@ -768,8 +762,11 @@ export function PCBuilder3D() {
     const onPointerDown = (event: PointerEvent) => {
       // Only handle left clicks on the canvas
       if(event.button !== 0 || !cameraRef.current || (event.target as HTMLElement).tagName !== 'CANVAS') return;
+      if (selectedObjectForDragRef.current) return; // Prevent new drag if one is in progress
       
+      event.preventDefault();
       isDraggingRef.current = false;
+
       raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
       const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene);
       const intersects = raycasterRef.current.intersectObjects(objectsToIntersect, true);
@@ -783,15 +780,14 @@ export function PCBuilder3D() {
         if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
             const object = parentGroup as DraggableObject;
             
-            // Set horizontal plane based on object's current y for x/z dragging
+            controlsRef.current.enabled = false;
+            selectedObjectForDragRef.current = object;
+            document.body.style.cursor = 'grabbing';
+
             planeRef.current.setFromNormalAndCoplanarPoint(
               new THREE.Vector3(0, 1, 0),
               new THREE.Vector3(0, object.position.y, 0)
             );
-
-            controlsRef.current.enabled = false;
-            selectedObjectForDragRef.current = object;
-            document.body.style.cursor = 'grabbing';
 
             if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
               offsetRef.current.copy(intersectionRef.current).sub(object.position);
@@ -801,15 +797,15 @@ export function PCBuilder3D() {
     };
     
     const onPointerUp = (event: PointerEvent) => {
-        const isDrag = isDraggingRef.current;
-        isDraggingRef.current = false;
+        const wasDragging = isDraggingRef.current;
         
-        controlsRef.current.enabled = true;
         selectedObjectForDragRef.current = null;
+        controlsRef.current.enabled = true;
         document.body.style.cursor = 'default';
+        isDraggingRef.current = false;
 
         // If it was a drag, don't process as a click
-        if (isDrag) {
+        if (wasDragging) {
             return;
         }
         
@@ -995,3 +991,5 @@ export function PCBuilder3D() {
     </div>
   );
 }
+
+    
