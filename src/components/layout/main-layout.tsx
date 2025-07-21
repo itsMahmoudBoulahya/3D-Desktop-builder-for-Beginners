@@ -36,19 +36,49 @@ export function MainLayout() {
               <TabsTrigger value="tests">Tests</TabsTrigger>
             </TabsList>
             <TabsContent value="instructions" className="flex-1 overflow-auto p-4">
-              <h2 className="text-lg font-semibold mb-2">Instructions</h2>
+              <h2 className="text-lg font-semibold mb-2">📝 Instructions de l’activité :</h2>
+              <p className="text-sm text-muted-foreground mt-2">
+                Bienvenue dans cette simulation interactive ! Ton objectif est de reconstituer un poste informatique fonctionnel en triant, plaçant et connectant les composants correctement.
+              </p>
+              
+              <h3 className="text-md font-semibold mt-4 mb-1">🔹 Étape 1 : Trier les composants</h3>
+              <p className="text-sm text-muted-foreground">Fais glisser chaque composant dans sa catégorie correcte :</p>
+              <ul className="list-disc list-inside text-sm text-muted-foreground pl-2 mt-1 space-y-1">
+                <li><span className="font-semibold">Entrée :</span> (exemples : clavier, souris, micro...)</li>
+                <li><span className="font-semibold">Sortie :</span> (exemples : écran, imprimante, haut-parleurs...)</li>
+                <li><span className="font-semibold">Traitement :</span> (exemple : unité centrale)</li>
+                <li><span className="font-semibold">Autres :</span> (exemples : multiprise, câble HDMI, câble USB...)</li>
+              </ul>
+
+              <h3 className="text-md font-semibold mt-4 mb-1">🔹 Étape 2 : Placer les composants</h3>
               <p className="text-sm text-muted-foreground">
-                Bienvenue dans le simulateur de montage de PC !
+                Place les différents composants sur la table virtuelle. Organise-les comme dans un vrai poste de travail informatique.
               </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                1. Allez dans l'onglet "Composants".
+
+              <h3 className="text-md font-semibold mt-4 mb-1">🔹 Étape 3 : Connecter les composants</h3>
+              <p className="text-sm text-muted-foreground">
+                Connecte tous les appareils entre eux pour rendre le poste fonctionnel. Tu dois utiliser les bons câbles (HDMI, USB, alimentation, etc.).
               </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                2. Faites glisser et déposez les composants sur le bureau.
+
+              <h3 className="text-md font-semibold mt-4 mb-1">🔹 Étape 4 : Vérification</h3>
+              <p className="text-sm text-muted-foreground">
+                Une fois tous les éléments connectés, clique sur "Lancer le test" pour vérifier si :
               </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                3. Cliquez sur un composant pour le sélectionner, puis cliquez sur "Connecter" pour voir les ports disponibles.
+              <ul className="list-disc list-inside text-sm text-muted-foreground pl-2 mt-1 space-y-1">
+                <li>L’ordinateur s’allume.</li>
+                <li>L’écran affiche une image.</li>
+                <li>Le clavier et la souris fonctionnent.</li>
+                <li>Le son sort des haut-parleurs.</li>
+                <li>Le micro capte le son.</li>
+                <li>L’imprimante est prête à imprimer.</li>
+              </ul>
+              
+              <h3 className="text-md font-semibold mt-4 mb-1">🧠 Conseil :</h3>
+              <p className="text-sm text-muted-foreground">
+                Pense à l’utilité de chaque composant et au type de câble ou de port utilisé pour le brancher !
               </p>
+
+              <p className="text-sm text-muted-foreground font-semibold mt-4">Bonne chance !</p>
             </TabsContent>
             <TabsContent value="composants" className="flex-1 overflow-auto">
               <ComponentLibrary />
