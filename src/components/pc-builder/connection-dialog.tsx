@@ -39,13 +39,16 @@ export function ConnectionDialog({
     const existingConnections = connections.get(device.name) || [];
 
     const hasPowerConnection = existingConnections.some(c => c.connectionType === 'power');
-    const hasDataConnection = existingConnections.some(c => c.connectionType === 'data');
-    
+    const dataConnections = existingConnections.filter(c => c.connectionType === 'data');
+
     return ports.filter(port => {
-      // Port is already occupied
-      if (port.userData.connectedTo !== null) {
+      // Port is already occupied by another device
+      if (port.userData.connectedTo && port.userData.connectedTo !== device.name) {
         return false;
       }
+      // Port is already connected to this device with the same connection type
+      const isAlreadyConnected = existingConnections.some(c => c.toPortId === port.name && c.connectionType === port.userData.connectionType);
+      if(isAlreadyConnected) return false;
       
       // Check if the port accepts the device type
       const portAcceptsDevice = port.userData.accepts.includes(deviceType);
@@ -57,16 +60,19 @@ export function ConnectionDialog({
       if (deviceNeeds.power && !hasPowerConnection && port.userData.connectionType === 'power') {
         return true;
       }
-
+      
       // Logic for data connections
-      if (deviceNeeds.data && !hasDataConnection && port.userData.connectionType === 'data') {
-        // If the device needs a specific data type (like hdmi, mic-in), check if the port type matches
-        if(deviceNeeds.dataType && deviceNeeds.dataType === port.userData.type) {
-            return true;
-        }
-        // If the device needs a generic usb, and the port is a usb port
-        if(deviceNeeds.dataType === 'usb' && port.userData.type === 'usb'){
-            return true;
+      if (deviceNeeds.data && port.userData.connectionType === 'data') {
+        const requiredDataTypes = Array.isArray(deviceNeeds.dataType) ? deviceNeeds.dataType : [deviceNeeds.dataType];
+        
+        // Check if the port's data type is one of the required types
+        if (requiredDataTypes.includes(port.userData.type)) {
+            // Check if a connection for this specific data type already exists
+            const hasDataConnectionForType = dataConnections.some(c => {
+                const connectedPort = ports.find(p => p.name === c.toPortId);
+                return connectedPort?.userData.type === port.userData.type;
+            });
+            return !hasDataConnectionForType;
         }
       }
 
@@ -94,7 +100,7 @@ export function ConnectionDialog({
         <DialogHeader>
           <DialogTitle>Connect {device.userData.info.split(': ')[1] || device.userData.info}</DialogTitle>
           <DialogDescription>
-            Select a port to connect to.
+            Select a port to connect to. This device may require multiple connections.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-60">
