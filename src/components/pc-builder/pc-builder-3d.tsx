@@ -41,10 +41,10 @@ export function PCBuilder3D() {
   const offsetRef = useRef(new THREE.Vector3());
   const isDraggingRef = useRef(false);
 
-  const outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x00aaff, side: THREE.BackSide });
+  const outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x00aaff, side: THREE.BackSide, transparent: true, opacity: 0.5 });
 
   const applyOutline = (object: THREE.Object3D) => {
-    if (object instanceof THREE.Mesh && object.name !== 'outline') {
+    if (object instanceof THREE.Mesh && object.name === 'selectable_mesh') {
       const outlineMesh = object.clone();
       outlineMesh.material = outlineMaterial;
       outlineMesh.scale.multiplyScalar(1.05);
@@ -81,6 +81,7 @@ export function PCBuilder3D() {
     const group = new THREE.Group();
     const caseMaterial = new THREE.MeshStandardMaterial({ color: 0x333842, metalness: 0.5, roughness: 0.6 });
     const caseMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 4.5), caseMaterial);
+    caseMesh.name = 'selectable_mesh';
     caseMesh.castShadow = true;
     caseMesh.receiveShadow = true;
     group.add(caseMesh);
@@ -115,6 +116,7 @@ export function PCBuilder3D() {
     group.add(screen);
     
     const frame = new THREE.Mesh(new THREE.BoxGeometry(4.5, 3.5, 0.3), frameMaterial);
+    frame.name = 'selectable_mesh';
     group.add(frame);
     
     const standNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 16), frameMaterial);
@@ -137,6 +139,7 @@ export function PCBuilder3D() {
     const keyMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.2 });
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.2, 1.2), bodyMaterial);
+    body.name = 'selectable_mesh';
     group.add(body);
 
     for(let i = 0; i < 6; i++) {
@@ -158,6 +161,7 @@ export function PCBuilder3D() {
       const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
 
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 1), bodyMaterial);
+      body.name = 'selectable_mesh';
       group.add(body);
       
       const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.2, 16), wheelMaterial);
@@ -176,6 +180,7 @@ export function PCBuilder3D() {
       const detailMaterial = new THREE.MeshStandardMaterial({ color: 0xbbbbbb, roughness: 0.7 });
 
       const mainBody = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 2.5), bodyMaterial);
+      mainBody.name = 'selectable_mesh';
       group.add(mainBody);
       
       const paperTray = new THREE.Mesh(new THREE.BoxGeometry(2, 0.2, 1.5), detailMaterial);
@@ -197,6 +202,7 @@ export function PCBuilder3D() {
     const outletMaterial = new THREE.MeshStandardMaterial({color: 0x222222});
 
     const strip = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.4, 0.8), bodyMaterial);
+    strip.name = 'selectable_mesh';
     strip.castShadow = true;
     strip.receiveShadow = true;
     group.add(strip);
@@ -244,9 +250,11 @@ export function PCBuilder3D() {
     ]);
     const geometry = new THREE.TubeGeometry(path, 20, 0.1, 8, false);
     const headband = new THREE.Mesh(geometry, material);
+    headband.name = 'selectable_mesh';
     group.add(headband);
 
     const headbandMirror = headband.clone();
+    headbandMirror.name = 'selectable_mesh';
     headbandMirror.scale.x = -1;
     group.add(headbandMirror);
   
@@ -272,6 +280,7 @@ export function PCBuilder3D() {
     const headMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
 
     const standBase = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 0.2, 32), bodyMaterial);
+    standBase.name = 'selectable_mesh';
     standBase.position.y = 0.1;
     group.add(standBase);
 
@@ -297,6 +306,7 @@ export function PCBuilder3D() {
     const createSpeaker = () => {
         const speakerGroup = new THREE.Group();
         const body = new THREE.Mesh(speakerGeo, material);
+        body.name = 'selectable_mesh';
         speakerGroup.add(body);
 
         const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.1, 32), coneMaterial);
@@ -332,6 +342,7 @@ export function PCBuilder3D() {
     const lensMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.8 });
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 0.3), bodyMaterial);
+    body.name = 'selectable_mesh';
     group.add(body);
 
     const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 16), lensMaterial);
@@ -350,6 +361,7 @@ export function PCBuilder3D() {
     const glassMaterial = new THREE.MeshStandardMaterial({ color: 0x88aaff, transparent: true, opacity: 0.3, roughness: 0.1 });
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.5, 2.5), bodyMaterial);
+    body.name = 'selectable_mesh';
     group.add(body);
 
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2.2), glassMaterial);
@@ -421,7 +433,7 @@ export function PCBuilder3D() {
     port.userData.connectedTo = object.name;
     
     if (isCorrect) {
-        toast({ title: "Connection Successful!", description: `${object.userData.type} connected to ${port.userData.type} port.` });
+        toast({ title: "Connection Successful!", description: `${object.userData.info.split(': ')[1] || object.userData.info} connected to ${port.name.replace(/-/g, ' ')}.` });
     } else {
         setWrongConnectionAlert({
             open: true,
@@ -891,5 +903,3 @@ export function PCBuilder3D() {
     </div>
   );
 }
-
-    
