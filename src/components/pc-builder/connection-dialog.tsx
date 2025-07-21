@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   Dialog,
@@ -9,13 +10,15 @@ import {
 import { Button } from '@/components/ui/button';
 import type { PortObject, DraggableObject } from './pc-builder-3d';
 import { ScrollArea } from '../ui/scroll-area';
+import type { Line } from 'three';
 
 interface ConnectionDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   device: DraggableObject | null;
   ports: PortObject[];
-  onConnect: (portId: string, connectionType: 'power' | 'data') => void;
+  onConnect: (portId: string, connectionType: 'power' | 'data' | string) => void;
+  connections: Map<string, { line: Line, toPortId: string, connectionType: string }[]>;
 }
 
 export function ConnectionDialog({
@@ -24,13 +27,19 @@ export function ConnectionDialog({
   device,
   ports,
   onConnect,
+  connections,
 }: ConnectionDialogProps) {
   if (!device) return null;
 
   const getAvailablePorts = () => {
+    if (!device) return [];
+
     const deviceType = device.userData.type;
-    const deviceNeedsPower = ['central-unit', 'monitor', 'printer', 'scanner', 'power-strip'].includes(deviceType);
-    const deviceNeedsData = !['power-strip'].includes(deviceType);
+    const deviceNeeds = device.userData.needs;
+    const existingConnections = connections.get(device.name) || [];
+
+    const hasPowerConnection = existingConnections.some(c => c.connectionType === 'power');
+    const hasDataConnection = existingConnections.some(c => c.connectionType === 'data');
     
     return ports.filter(port => {
       // Port is already occupied
@@ -38,14 +47,27 @@ export function ConnectionDialog({
         return false;
       }
       
+      // Check if the port accepts the device type
       const portAcceptsDevice = port.userData.accepts.includes(deviceType);
-      
-      if (deviceNeedsPower && port.userData.connectionType === 'power' && portAcceptsDevice) {
+      if (!portAcceptsDevice) {
+        return false;
+      }
+
+      // Logic for power connections
+      if (deviceNeeds.power && !hasPowerConnection && port.userData.connectionType === 'power') {
         return true;
       }
 
-      if (deviceNeedsData && port.userData.connectionType === 'data' && portAcceptsDevice) {
-        return true;
+      // Logic for data connections
+      if (deviceNeeds.data && !hasDataConnection && port.userData.connectionType === 'data') {
+         // This handles specific data types like hdmi, audio-in etc.
+        if(deviceNeeds.dataType && deviceNeeds.dataType === port.userData.type) {
+            return true;
+        }
+        // This handles generic data types like usb
+        if(deviceNeeds.dataType === 'usb' && port.userData.type === 'usb'){
+            return true;
+        }
       }
 
       return false;
@@ -96,3 +118,5 @@ export function ConnectionDialog({
     </Dialog>
   );
 }
+
+    
