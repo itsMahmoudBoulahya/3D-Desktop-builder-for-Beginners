@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -15,6 +16,7 @@ import { PCBuilder3D } from '@/components/pc-builder/pc-builder-3d';
 import { ComponentLibrary } from '../pc-builder/component-library';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
+import { SortingTest } from '../pc-builder/sorting-test';
 
 export function MainLayout() {
   return (
@@ -84,10 +86,7 @@ export function MainLayout() {
               <ComponentLibrary />
             </TabsContent>
             <TabsContent value="tests" className="flex-1 overflow-auto p-4">
-               <h2 className="text-lg font-semibold mb-2">Tests</h2>
-               <p className="text-sm text-muted-foreground">
-                Cette section est en cours de développement. Revenez bientôt pour tester votre configuration !
-               </p>
+              <SortingTest />
             </TabsContent>
           </Tabs>
         </SidebarContent>
