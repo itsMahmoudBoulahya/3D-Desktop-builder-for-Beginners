@@ -43,7 +43,7 @@ export function PCBuilder3D() {
   const isDraggingRef = useRef(false);
 
   const applyOutline = (object: THREE.Object3D) => {
-    if (object instanceof THREE.Mesh && object.name === 'selectable_mesh') {
+    if (object instanceof THREE.Mesh && object.userData.isSelectable) {
       const outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x00aaff, side: THREE.BackSide, transparent: true, opacity: 0.5 });
       const outlineMesh = object.clone();
       outlineMesh.material = outlineMaterial;
@@ -81,7 +81,7 @@ export function PCBuilder3D() {
     const group = new THREE.Group();
     const caseMaterial = new THREE.MeshStandardMaterial({ color: 0x333842, metalness: 0.5, roughness: 0.6 });
     const caseMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 4.5), caseMaterial);
-    caseMesh.name = 'selectable_mesh';
+    caseMesh.userData.isSelectable = true;
     caseMesh.castShadow = true;
     caseMesh.receiveShadow = true;
     group.add(caseMesh);
@@ -116,7 +116,7 @@ export function PCBuilder3D() {
     group.add(screen);
     
     const frame = new THREE.Mesh(new THREE.BoxGeometry(4.5, 3.5, 0.3), frameMaterial);
-    frame.name = 'selectable_mesh';
+    frame.userData.isSelectable = true;
     group.add(frame);
     
     const standNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 16), frameMaterial);
@@ -139,7 +139,7 @@ export function PCBuilder3D() {
     const keyMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.2 });
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.2, 1.2), bodyMaterial);
-    body.name = 'selectable_mesh';
+    body.userData.isSelectable = true;
     group.add(body);
 
     for(let i = 0; i < 6; i++) {
@@ -161,7 +161,7 @@ export function PCBuilder3D() {
       const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
 
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 1), bodyMaterial);
-      body.name = 'selectable_mesh';
+      body.userData.isSelectable = true;
       group.add(body);
       
       const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.2, 16), wheelMaterial);
@@ -180,7 +180,7 @@ export function PCBuilder3D() {
       const detailMaterial = new THREE.MeshStandardMaterial({ color: 0xbbbbbb, roughness: 0.7 });
 
       const mainBody = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 2.5), bodyMaterial);
-      mainBody.name = 'selectable_mesh';
+      mainBody.userData.isSelectable = true;
       group.add(mainBody);
       
       const paperTray = new THREE.Mesh(new THREE.BoxGeometry(2, 0.2, 1.5), detailMaterial);
@@ -202,7 +202,7 @@ export function PCBuilder3D() {
     const outletMaterial = new THREE.MeshStandardMaterial({color: 0x222222});
 
     const strip = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.4, 0.8), bodyMaterial);
-    strip.name = 'selectable_mesh';
+    strip.userData.isSelectable = true;
     strip.castShadow = true;
     strip.receiveShadow = true;
     group.add(strip);
@@ -250,11 +250,11 @@ export function PCBuilder3D() {
     ]);
     const geometry = new THREE.TubeGeometry(path, 20, 0.1, 8, false);
     const headband = new THREE.Mesh(geometry, material);
-    headband.name = 'selectable_mesh';
+    headband.userData.isSelectable = true;
     group.add(headband);
 
     const headbandMirror = headband.clone();
-    headbandMirror.name = 'selectable_mesh_mirror';
+    headbandMirror.userData.isSelectable = false; // Don't select the mirror
     headbandMirror.scale.x = -1;
     group.add(headbandMirror);
   
@@ -280,7 +280,7 @@ export function PCBuilder3D() {
     const headMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
 
     const standBase = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 0.2, 32), bodyMaterial);
-    standBase.name = 'selectable_mesh';
+    standBase.userData.isSelectable = true;
     standBase.position.y = 0.1;
     group.add(standBase);
 
@@ -305,7 +305,7 @@ export function PCBuilder3D() {
     const createSpeaker = () => {
         const speakerGroup = new THREE.Group();
         const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.8), material);
-        body.name = 'selectable_mesh';
+        body.userData.isSelectable = true;
         speakerGroup.add(body);
 
         const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.1, 32), coneMaterial);
@@ -329,6 +329,13 @@ export function PCBuilder3D() {
 
     const speaker2 = speaker1.clone();
     speaker2.position.x = 0.6;
+    // We only want the main body to be selectable, but the clone will have it too.
+    // So we iterate and disable it.
+    speaker2.traverse(child => {
+        if (child instanceof THREE.Mesh && child.userData.isSelectable) {
+            child.userData.isSelectable = false;
+        }
+    });
     group.add(speaker2);
 
     group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
@@ -341,7 +348,7 @@ export function PCBuilder3D() {
     const lensMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.8 });
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 0.3), bodyMaterial);
-    body.name = 'selectable_mesh';
+    body.userData.isSelectable = true;
     group.add(body);
 
     const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 16), lensMaterial);
@@ -360,7 +367,7 @@ export function PCBuilder3D() {
     const glassMaterial = new THREE.MeshStandardMaterial({ color: 0x88aaff, transparent: true, opacity: 0.3, roughness: 0.1 });
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.5, 2.5), bodyMaterial);
-    body.name = 'selectable_mesh';
+    body.userData.isSelectable = true;
     group.add(body);
 
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2.2), glassMaterial);
@@ -498,7 +505,7 @@ export function PCBuilder3D() {
         case 'keyboard': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createKeyboard, {data: true, dataType: 'usb'}); break;
         case 'mouse': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createMouse, {data: true, dataType: 'usb'}); break;
         case 'printer': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.45, dropPoint.z], createPrinter, {power: true, data: true, dataType: 'usb'}); break;
-        case 'power-strip': newComponent = createComponent(name, 'power', info, [dropPoint.x, DESK_LEVEL + 0.16, dropPoint.z], createPowerStrip, {power: true}); break;
+        case 'power-strip': newComponent = createComponent(name, 'power-strip', info, [dropPoint.x, DESK_LEVEL + 0.16, dropPoint.z], createPowerStrip, {power: true}); break;
         case 'headphones': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.7, dropPoint.z], createHeadphones, {data: true, dataType: 'audio-out'}); break;
         case 'mic': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createMicrophone, {data: true, dataType: 'mic-in'}); break;
         case 'speakers': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createSpeakers, {data: true, dataType: 'audio-out'}); break;
@@ -604,7 +611,7 @@ export function PCBuilder3D() {
     wallOutletGroup.add(createOutlet(-0.15));
 
     scene.add(wallOutletGroup);
-    createPort('wall-outlet', 'wall-power', 'power', ['power'], wallOutletGroup, [0, 0, 0.1], 0x111111);
+    createPort('wall-outlet', 'wall-power', 'power', ['power-strip'], wallOutletGroup, [0, 0, 0.1], 0x111111);
 
 
     // Office Desk
@@ -653,7 +660,7 @@ export function PCBuilder3D() {
     createPort('audio-out', 'audio-out', 'data', ['headphones', 'speakers'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
     createPort('mic-in', 'mic-in', 'data', ['mic'], tower, [-0.1, -0.5, -2.3], 0xff69b4);
 
-    const powerStrip = createComponent('power-strip', 'power', 'Power Strip', 
+    const powerStrip = createComponent('power-strip', 'power-strip', 'Power Strip', 
       [3, 0.2, 0],
       createPowerStrip,
       { power: true }
@@ -991,3 +998,5 @@ export function PCBuilder3D() {
     </div>
   );
 }
+
+    
