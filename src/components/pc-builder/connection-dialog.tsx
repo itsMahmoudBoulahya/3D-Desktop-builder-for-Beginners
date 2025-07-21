@@ -36,7 +36,7 @@ export function ConnectionDialog({
     const needsPower = ['monitor', 'printer', 'scanner', 'central-unit'].includes(device.userData.type);
     const hasDataConnection = ['monitor', 'printer', 'scanner', 'keyboard', 'mouse', 'mic', 'webcam', 'speakers', 'headphones'].includes(device.userData.type);
 
-    const availablePorts = [];
+    let availablePorts: PortObject[] = [];
 
     // Check for power ports if needed
     if (needsPower) {
@@ -46,8 +46,15 @@ export function ConnectionDialog({
     
     // Check for data ports if needed
     if (hasDataConnection) {
-        const dataPorts = ports.filter(p => p.userData.accepts.includes(device.userData.type) && p.userData.connectedTo === null && !p.userData.type.includes('power'));
-        availablePorts.push(...dataPorts);
+        if (device.userData.type === 'monitor') {
+            // Special case for monitor: it connects to an HDMI port on the tower
+            const hdmiPorts = ports.filter(p => p.userData.type === 'hdmi' && p.userData.accepts.includes('monitor') && p.userData.connectedTo === null);
+            availablePorts.push(...hdmiPorts);
+        } else {
+            // General case for other peripherals
+            const dataPorts = ports.filter(p => p.userData.accepts.includes(device.userData.type) && p.userData.connectedTo === null && !p.userData.type.includes('power'));
+            availablePorts.push(...dataPorts);
+        }
     }
     
     return availablePorts;
