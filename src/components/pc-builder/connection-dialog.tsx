@@ -60,11 +60,11 @@ export function ConnectionDialog({
 
       // Logic for data connections
       if (deviceNeeds.data && !hasDataConnection && port.userData.connectionType === 'data') {
-         // This handles specific data types like hdmi, audio-in etc.
+        // If the device needs a specific data type (like hdmi, mic-in), check if the port type matches
         if(deviceNeeds.dataType && deviceNeeds.dataType === port.userData.type) {
             return true;
         }
-        // This handles generic data types like usb
+        // If the device needs a generic usb, and the port is a usb port
         if(deviceNeeds.dataType === 'usb' && port.userData.type === 'usb'){
             return true;
         }
@@ -118,5 +118,3 @@ export function ConnectionDialog({
     </Dialog>
   );
 }
-
-    
