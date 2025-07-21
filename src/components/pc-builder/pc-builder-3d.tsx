@@ -42,10 +42,9 @@ export function PCBuilder3D() {
   const offsetRef = useRef(new THREE.Vector3());
   const isDraggingRef = useRef(false);
 
-  const outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x00aaff, side: THREE.BackSide, transparent: true, opacity: 0.5 });
-
   const applyOutline = (object: THREE.Object3D) => {
     if (object instanceof THREE.Mesh && object.name === 'selectable_mesh') {
+      const outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x00aaff, side: THREE.BackSide, transparent: true, opacity: 0.5 });
       const outlineMesh = object.clone();
       outlineMesh.material = outlineMaterial;
       outlineMesh.scale.multiplyScalar(1.05);
@@ -255,7 +254,7 @@ export function PCBuilder3D() {
     group.add(headband);
 
     const headbandMirror = headband.clone();
-    headbandMirror.name = 'selectable_mesh';
+    headbandMirror.name = 'selectable_mesh_mirror';
     headbandMirror.scale.x = -1;
     group.add(headbandMirror);
   
@@ -405,7 +404,23 @@ export function PCBuilder3D() {
     let isCorrect = port.userData.accepts.includes(object.userData.type) && port.userData.connectionType === connectionType;
 
     const existingConnections = connectionsRef.current.get(object.name) || [];
-    const isDuplicate = existingConnections.some(conn => conn.connectionType === connectionType);
+    const isDuplicate = existingConnections.some(conn => {
+        const connPort = portsRef.current.find(p => p.name === conn.toPortId);
+        if (!connPort) return false;
+
+        // If it's a data connection, check if a data connection already exists
+        if(connectionType === 'data' && connPort.userData.connectionType === 'data') {
+            return true;
+        }
+
+        // If it's a power connection, check if a power connection already exists
+        if(connectionType === 'power' && connPort.userData.connectionType === 'power') {
+            return true;
+        }
+
+        return false;
+    });
+
     
     if (isDuplicate) {
         toast({
@@ -492,7 +507,7 @@ export function PCBuilder3D() {
         case 'keyboard': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createKeyboard, {data: true, dataType: 'usb'}); break;
         case 'mouse': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createMouse, {data: true, dataType: 'usb'}); break;
         case 'printer': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.45, dropPoint.z], createPrinter, {power: true, data: true, dataType: 'usb'}); break;
-        case 'power-strip': newComponent = createComponent(name, 'power-strip', info, [dropPoint.x, DESK_LEVEL + 0.16, dropPoint.z], createPowerStrip, {power: true}); break;
+        case 'power-strip': newComponent = createComponent(name, 'power', info, [dropPoint.x, DESK_LEVEL + 0.16, dropPoint.z], createPowerStrip, {power: true}); break;
         case 'headphones': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.7, dropPoint.z], createHeadphones, {data: true, dataType: 'audio-out'}); break;
         case 'mic': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createMicrophone, {data: true, dataType: 'mic-in'}); break;
         case 'speakers': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createSpeakers, {data: true, dataType: 'audio-out'}); break;
@@ -598,7 +613,7 @@ export function PCBuilder3D() {
     wallOutletGroup.add(createOutlet(-0.15));
 
     scene.add(wallOutletGroup);
-    createPort('wall-outlet', 'wall-power', 'power', ['power-strip'], wallOutletGroup, [0, 0, 0.1], 0x111111);
+    createPort('wall-outlet', 'wall-power', 'power', ['power'], wallOutletGroup, [0, 0, 0.1], 0x111111);
 
 
     // Office Desk
@@ -647,11 +662,12 @@ export function PCBuilder3D() {
     createPort('audio-out', 'audio-out', 'data', ['headphones', 'speakers'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
     createPort('mic-in', 'mic-in', 'data', ['mic'], tower, [-0.1, -0.5, -2.3], 0xff69b4);
 
-    const powerStrip = createComponent('power-strip', 'power-strip', 'Power Strip', 
+    const powerStrip = createComponent('power-strip', 'power', 'Power Strip', 
       [3, 0.2, 0],
       createPowerStrip,
       { power: true }
     );
+    powerStrip.userData.inScene = true;
     draggableObjectsRef.current.push(powerStrip);
     const powerStripAccepts = ['central-unit', 'monitor', 'printer', 'scanner'];
     createPort('power-strip-1', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [-0.9, 0.21, 0.05], 0x111111);
@@ -711,8 +727,18 @@ export function PCBuilder3D() {
       
         if(selectedObjectForDragRef.current) {
             isDraggingRef.current = true;
-            if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
-                selectedObjectForDragRef.current.position.copy(intersectionRef.current.sub(offsetRef.current));
+
+            // Vertical movement
+            if (event.shiftKey) {
+                const currentY = selectedObjectForDragRef.current.position.y;
+                // The sensitivity factor (e.g., 0.05) might need tweaking
+                const newY = currentY - event.movementY * 0.05;
+                selectedObjectForDragRef.current.position.y = newY;
+            } else { // Horizontal movement
+                if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
+                    selectedObjectForDragRef.current.position.x = intersectionRef.current.sub(offsetRef.current).x;
+                    selectedObjectForDragRef.current.position.z = intersectionRef.current.sub(offsetRef.current).z;
+                }
             }
         } else {
             const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene).flatMap(o => o.children);
@@ -740,7 +766,8 @@ export function PCBuilder3D() {
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      if(event.button !== 0 || !cameraRef.current) return;
+      // Only handle left clicks on the canvas
+      if(event.button !== 0 || !cameraRef.current || (event.target as HTMLElement).tagName !== 'CANVAS') return;
       
       isDraggingRef.current = false;
       raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
@@ -756,9 +783,10 @@ export function PCBuilder3D() {
         if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
             const object = parentGroup as DraggableObject;
             
+            // Set horizontal plane based on object's current y for x/z dragging
             planeRef.current.setFromNormalAndCoplanarPoint(
               new THREE.Vector3(0, 1, 0),
-              new THREE.Vector3(0, intersects[0].point.y, 0)
+              new THREE.Vector3(0, object.position.y, 0)
             );
 
             controlsRef.current.enabled = false;
@@ -773,15 +801,6 @@ export function PCBuilder3D() {
     };
     
     const onPointerUp = (event: PointerEvent) => {
-        // Only handle clicks on the canvas, ignore UI elements
-        const target = event.target as HTMLElement;
-        if (target !== rendererRef.current?.domElement) {
-            controlsRef.current.enabled = true;
-            selectedObjectForDragRef.current = null;
-            document.body.style.cursor = 'default';
-            return;
-        }
-
         const isDrag = isDraggingRef.current;
         isDraggingRef.current = false;
         
@@ -789,7 +808,14 @@ export function PCBuilder3D() {
         selectedObjectForDragRef.current = null;
         document.body.style.cursor = 'default';
 
+        // If it was a drag, don't process as a click
         if (isDrag) {
+            return;
+        }
+        
+        // Only handle clicks on the canvas, ignore UI elements
+        const target = event.target as HTMLElement;
+        if (target !== rendererRef.current?.domElement) {
             return;
         }
 
@@ -878,6 +904,24 @@ export function PCBuilder3D() {
       });
       connectionsRef.current.delete(objectId);
     }
+    
+    // Also remove lines connected TO this object
+    connectionsRef.current.forEach((connections, otherObjectId) => {
+        const remainingConnections = connections.filter(conn => {
+            const port = portsRef.current.find(p => p.name === conn.toPortId);
+            if (port && port.parent?.name === objectId) {
+                sceneRef.current.remove(conn.line);
+                return false;
+            }
+            return true;
+        });
+        if(remainingConnections.length !== connections.length) {
+            connectionsRef.current.set(otherObjectId, remainingConnections);
+        }
+    });
+
+    // Remove ports belonging to the object
+    portsRef.current = portsRef.current.filter(p => p.parent?.name !== objectId);
 
     // Remove the object from the scene
     sceneRef.current.remove(selectedComponent);
@@ -906,13 +950,16 @@ export function PCBuilder3D() {
         </div>
       )}
       {selectedComponent && (
-          <div className='absolute bottom-5 left-1/2 -translate-x-1/2 bg-card p-4 rounded-lg shadow-2xl border flex items-center gap-4'>
-              <p className='font-semibold text-card-foreground'>Selected: {selectedComponent.userData.info.split(': ')[1] || selectedComponent.userData.info}</p>
-              <Button onClick={onConnectClick}>Connect</Button>
-              <Button variant="destructive" size="icon" onClick={handleDeleteComponent}>
-                <Trash2 className="h-4 w-4" />
-                <span className="sr-only">Delete</span>
-              </Button>
+          <div className='absolute bottom-5 left-1/2 -translate-x-1/2 bg-card p-4 rounded-lg shadow-2xl border flex flex-col items-center gap-2'>
+              <div className='flex items-center gap-4'>
+                <p className='font-semibold text-card-foreground'>Selected: {selectedComponent.userData.info.split(': ')[1] || selectedComponent.userData.info}</p>
+                <Button onClick={onConnectClick}>Connect</Button>
+                <Button variant="destructive" size="icon" onClick={handleDeleteComponent}>
+                    <Trash2 className="h-4 w-4" />
+                    <span className="sr-only">Delete</span>
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Hold <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-muted border rounded-md">Shift</kbd> to move vertically.</p>
           </div>
       )}
       <ConnectionDialog 
