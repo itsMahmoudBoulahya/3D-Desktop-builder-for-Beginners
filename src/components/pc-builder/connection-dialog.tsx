@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import type { PortObject, DraggableObject } from './pc-builder-3d';
+import { ScrollArea } from '../ui/scroll-area';
 
 interface ConnectionDialogProps {
   isOpen: boolean;
@@ -28,16 +29,26 @@ export function ConnectionDialog({
 
   const getAvailablePorts = () => {
     const deviceType = device.userData.type;
+    const deviceNeedsPower = ['central-unit', 'monitor', 'printer', 'scanner', 'power-strip'].includes(deviceType);
+    const deviceNeedsData = !['power-strip'].includes(deviceType);
+    
     return ports.filter(port => {
-      // Port is already connected
+      // Port is already occupied
       if (port.userData.connectedTo !== null) {
         return false;
       }
-      // Port accepts the device type
-      if (!port.userData.accepts.includes(deviceType)) {
-        return false;
+      
+      const portAcceptsDevice = port.userData.accepts.includes(deviceType);
+      
+      if (deviceNeedsPower && port.userData.connectionType === 'power' && portAcceptsDevice) {
+        return true;
       }
-      return true;
+
+      if (deviceNeedsData && port.userData.connectionType === 'data' && portAcceptsDevice) {
+        return true;
+      }
+
+      return false;
     });
   };
 
@@ -64,21 +75,23 @@ export function ConnectionDialog({
             Select a port to connect to.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-4 py-4">
-          {availablePorts.length > 0 ? (
-            availablePorts.map((port) => (
-              <Button
-                key={port.name}
-                variant="outline"
-                onClick={() => onConnect(port.name, port.userData.connectionType)}
-              >
-                {port.name.replace(/-/g, ' ').replace(/\d/g, m => ` ${m}`).toUpperCase()} ({getPortParentName(port)})
-              </Button>
-            ))
-          ) : (
-            <p className="col-span-2 text-sm text-muted-foreground text-center">No available ports for this device.</p>
-          )}
-        </div>
+        <ScrollArea className="max-h-60">
+            <div className="grid grid-cols-2 gap-4 py-4 pr-4">
+            {availablePorts.length > 0 ? (
+                availablePorts.map((port) => (
+                <Button
+                    key={port.name}
+                    variant="outline"
+                    onClick={() => onConnect(port.name, port.userData.connectionType)}
+                >
+                    {port.name.replace(/-/g, ' ').replace(/\d/g, m => ` ${m}`).toUpperCase()} ({getPortParentName(port)})
+                </Button>
+                ))
+            ) : (
+                <p className="col-span-2 text-sm text-muted-foreground text-center">No available ports for this device.</p>
+            )}
+            </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

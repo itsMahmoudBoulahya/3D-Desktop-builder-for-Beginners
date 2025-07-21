@@ -64,11 +64,12 @@ export function PCBuilder3D() {
     type: string,
     info: string,
     position: [number, number, number],
-    createGeometry: () => THREE.Group
+    createGeometry: () => THREE.Group,
+    connectionType: 'power' | 'data' | null
   ): DraggableObject => {
     const group = createGeometry();
     group.name = name;
-    group.userData = { id: name, type, info, inScene: true };
+    group.userData = { id: name, type, info, inScene: true, connectionType };
     group.position.set(...position);
     sceneRef.current.add(group);
     
@@ -316,7 +317,7 @@ export function PCBuilder3D() {
     speaker1.position.x = -0.6;
     group.add(speaker1);
 
-    const speaker2 = createSpeaker();
+    const speaker2 = speaker1.clone();
     speaker2.position.x = 0.6;
     group.add(speaker2);
 
@@ -394,7 +395,7 @@ export function PCBuilder3D() {
         toast({
             variant: 'destructive',
             title: "Connection already exists",
-            description: `A ${connectionType} connection already exists for this device.`,
+            description: `A ${connectionType} connection for this device already exists.`,
         });
         setConnectionDialogOpen(false);
         return;
@@ -471,20 +472,21 @@ export function PCBuilder3D() {
 
       let newComponent: DraggableObject | null = null;
       switch(type) {
-        case 'monitor': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 2.8, dropPoint.z], createMonitor); break;
-        case 'keyboard': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createKeyboard); break;
-        case 'mouse': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createMouse); break;
-        case 'printer': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.45, dropPoint.z], createPrinter); break;
-        case 'power': newComponent = createComponent(name, 'power-strip', info, [dropPoint.x, DESK_LEVEL + 0.16, dropPoint.z], createPowerStrip); break;
-        case 'headphones': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.7, dropPoint.z], createHeadphones); break;
-        case 'mic': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createMicrophone); break;
-        case 'speakers': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createSpeakers); break;
-        case 'webcam': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.2, dropPoint.z], createWebcam); break;
-        case 'scanner': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.175, dropPoint.z], createScanner); break;
+        case 'monitor': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 2.8, dropPoint.z], createMonitor, 'data'); break;
+        case 'keyboard': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createKeyboard, 'data'); break;
+        case 'mouse': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createMouse, 'data'); break;
+        case 'printer': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.45, dropPoint.z], createPrinter, 'data'); break;
+        case 'power': newComponent = createComponent(name, 'power-strip', info, [dropPoint.x, DESK_LEVEL + 0.16, dropPoint.z], createPowerStrip, 'power'); break;
+        case 'headphones': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.7, dropPoint.z], createHeadphones, 'data'); break;
+        case 'mic': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createMicrophone, 'data'); break;
+        case 'speakers': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createSpeakers, 'data'); break;
+        case 'webcam': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.2, dropPoint.z], createWebcam, 'data'); break;
+        case 'scanner': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.175, dropPoint.z], createScanner, 'data'); break;
       }
 
       if(newComponent) {
-        if(newComponent.userData.type === 'power-strip') newComponent.userData.type = 'power';
+        if(newComponent.userData.type === 'power-strip') newComponent.userData.connectionType = 'power';
+        if(newComponent.userData.type === 'central-unit') newComponent.userData.connectionType = 'power';
         draggableObjectsRef.current.push(newComponent);
       }
     };
@@ -582,7 +584,7 @@ export function PCBuilder3D() {
     wallOutletGroup.add(createOutlet(-0.15));
 
     scene.add(wallOutletGroup);
-    createPort('wall-outlet', 'wall-power', 'power', ['power'], wallOutletGroup, [0, 0, 0], 0x111111);
+    createPort('wall-outlet', 'wall-power', 'power', ['power-strip'], wallOutletGroup, [0, 0, 0], 0x111111);
 
 
     // Office Desk
@@ -612,13 +614,14 @@ export function PCBuilder3D() {
     scene.add(deskGroup);
 
     const tower = createComponent('cpu-tower', 'central-unit', 'Central Unit', 
-      [-3, DESK_LEVEL + 2.0, -2],
-      createTower
+      [-3, DESK_LEVEL + 2.0, 0],
+      createTower,
+      'power'
     );
     tower.userData.inScene = true;
     draggableObjectsRef.current.push(tower);
     
-    const usbTypes = ['keyboard', 'mouse', 'printer', 'mic', 'webcam', 'scanner'];
+    const usbTypes = ['keyboard', 'mouse', 'printer', 'mic', 'webcam', 'scanner', 'headphones', 'speakers'];
     createPort('usb1', 'usb', 'data', usbTypes, tower, [-0.7, 1.5, -2.3], 0x0077ff);
     createPort('usb2', 'usb', 'data', usbTypes, tower, [-0.4, 1.5, -2.3], 0x0077ff);
     createPort('usb3', 'usb', 'data', usbTypes, tower, [-0.7, 1.2, -2.3], 0x0077ff);
@@ -633,17 +636,20 @@ export function PCBuilder3D() {
     createPort('mic-in', 'mic-in', 'data', ['mic'], tower, [-0.1, -0.5, -2.3], 0xff69b4);
 
     const monitor = createComponent('monitor', 'monitor', 'Output Device: Monitor',
-        [0, DESK_LEVEL + 2.8, -2],
-        createMonitor
+        [0, DESK_LEVEL + 2.8, 0],
+        createMonitor,
+        'data'
     );
     draggableObjectsRef.current.push(monitor);
     createPort('monitor-power', 'power-in', 'power', ['monitor'], monitor, [0, -2.2, 0], 0xdddd00);
     createPort('monitor-hdmi', 'hdmi-in', 'data', ['monitor'], monitor, [0.5, -2.2, 0], 0xff8c00);
 
-    const powerStrip = createComponent('power-strip', 'power', 'Power Strip', 
-      [3, 0.2, -2],
-      createPowerStrip
+    const powerStrip = createComponent('power-strip', 'power-strip', 'Power Strip', 
+      [3, 0.2, 0],
+      createPowerStrip,
+      'power'
     );
+    powerStrip.userData.type = 'power-strip'; // override for special case
     draggableObjectsRef.current.push(powerStrip);
     const powerStripAccepts = ['central-unit', 'monitor', 'printer', 'scanner'];
     createPort('power-strip-1', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [-0.9, 0.21, 0], 0x111111);
@@ -869,7 +875,11 @@ export function PCBuilder3D() {
         }}
         device={selectedComponent}
         ports={portsRef.current}
-        onConnect={handleConnection}
+        onConnect={(portId, connectionType) => {
+            if (selectedComponent) {
+              handleConnection(selectedComponent.name, portId, connectionType);
+            }
+        }}
       />
       <AlertDialog open={wrongConnectionAlert.open} onOpenChange={(open) => setWrongConnectionAlert(prev => ({...prev, open}))}>
         <AlertDialogContent>
