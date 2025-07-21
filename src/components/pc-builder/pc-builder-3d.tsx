@@ -403,7 +403,7 @@ export function PCBuilder3D() {
     const existingConnections = connectionsRef.current.get(object.name) || [];
     const hasConnectionOfType = existingConnections.some(c => c.connectionType === connectionType);
 
-    if (hasConnectionOfType && connectionType !== 'power') { // Allow multiple power connections from strip, but not multiple data
+    if (hasConnectionOfType) {
         toast({
             variant: 'destructive',
             title: "Connection already exists",
@@ -991,5 +991,3 @@ export function PCBuilder3D() {
     </div>
   );
 }
-
-    
