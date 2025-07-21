@@ -43,21 +43,30 @@ export function PCBuilder3D() {
   const isDraggingRef = useRef(false);
 
   const applyOutline = (object: THREE.Object3D) => {
-    if (object instanceof THREE.Mesh && object.userData.isSelectable) {
-      const outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x00aaff, side: THREE.BackSide, transparent: true, opacity: 0.5 });
-      const outlineMesh = object.clone();
-      outlineMesh.material = outlineMaterial;
-      outlineMesh.scale.multiplyScalar(1.05);
-      outlineMesh.name = 'outline';
-      object.add(outlineMesh);
-    }
+    object.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.userData.isSelectable) {
+            // Prevent applying outline if one already exists
+            if (child.getObjectByName('outline')) return;
+
+            const outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x00aaff, side: THREE.BackSide, transparent: true, opacity: 0.5 });
+            // Create a new mesh from the same geometry, don't clone the mesh itself
+            const outlineMesh = new THREE.Mesh(child.geometry, outlineMaterial);
+            outlineMesh.scale.multiplyScalar(1.05);
+            outlineMesh.name = 'outline';
+            child.add(outlineMesh);
+        }
+    });
   };
 
   const removeOutline = (object: THREE.Object3D) => {
-    const outline = object.getObjectByName('outline');
-    if (outline) {
-      object.remove(outline);
-    }
+    object.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+            const outline = child.getObjectByName('outline');
+            if (outline) {
+                child.remove(outline);
+            }
+        }
+    });
   };
 
   const createComponent = useCallback((
@@ -82,6 +91,7 @@ export function PCBuilder3D() {
     const caseMaterial = new THREE.MeshStandardMaterial({ color: 0x333842, metalness: 0.5, roughness: 0.6 });
     const caseMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 4.5), caseMaterial);
     caseMesh.userData.isSelectable = true;
+    caseMesh.name = "body";
     caseMesh.castShadow = true;
     caseMesh.receiveShadow = true;
     group.add(caseMesh);
@@ -117,6 +127,7 @@ export function PCBuilder3D() {
     
     const frame = new THREE.Mesh(new THREE.BoxGeometry(4.5, 3.5, 0.3), frameMaterial);
     frame.userData.isSelectable = true;
+    frame.name = "frame";
     group.add(frame);
     
     const standNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 16), frameMaterial);
@@ -140,6 +151,7 @@ export function PCBuilder3D() {
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.2, 1.2), bodyMaterial);
     body.userData.isSelectable = true;
+    body.name = "body";
     group.add(body);
 
     for(let i = 0; i < 6; i++) {
@@ -162,6 +174,7 @@ export function PCBuilder3D() {
 
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 1), bodyMaterial);
       body.userData.isSelectable = true;
+      body.name = "body";
       group.add(body);
       
       const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.2, 16), wheelMaterial);
@@ -181,6 +194,7 @@ export function PCBuilder3D() {
 
       const mainBody = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 2.5), bodyMaterial);
       mainBody.userData.isSelectable = true;
+      mainBody.name = "body";
       group.add(mainBody);
       
       const paperTray = new THREE.Mesh(new THREE.BoxGeometry(2, 0.2, 1.5), detailMaterial);
@@ -203,6 +217,7 @@ export function PCBuilder3D() {
 
     const strip = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.4, 0.8), bodyMaterial);
     strip.userData.isSelectable = true;
+    strip.name = "body";
     strip.castShadow = true;
     strip.receiveShadow = true;
     group.add(strip);
@@ -251,6 +266,7 @@ export function PCBuilder3D() {
     const geometry = new THREE.TubeGeometry(path, 20, 0.1, 8, false);
     const headband = new THREE.Mesh(geometry, material);
     headband.userData.isSelectable = true;
+    headband.name = "body";
     group.add(headband);
 
     const headbandMirror = headband.clone();
@@ -281,6 +297,7 @@ export function PCBuilder3D() {
 
     const standBase = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 0.2, 32), bodyMaterial);
     standBase.userData.isSelectable = true;
+    standBase.name = "body";
     standBase.position.y = 0.1;
     group.add(standBase);
 
@@ -306,6 +323,7 @@ export function PCBuilder3D() {
         const speakerGroup = new THREE.Group();
         const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.8), material);
         body.userData.isSelectable = true;
+        body.name = "body";
         speakerGroup.add(body);
 
         const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.1, 32), coneMaterial);
@@ -349,6 +367,7 @@ export function PCBuilder3D() {
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 0.3), bodyMaterial);
     body.userData.isSelectable = true;
+    body.name = "body";
     group.add(body);
 
     const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 16), lensMaterial);
@@ -368,6 +387,7 @@ export function PCBuilder3D() {
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.5, 2.5), bodyMaterial);
     body.userData.isSelectable = true;
+    body.name = "body";
     group.add(body);
 
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2.2), glassMaterial);
@@ -806,8 +826,11 @@ export function PCBuilder3D() {
     const onPointerUp = (event: PointerEvent) => {
         const wasDragging = isDraggingRef.current;
         
-        selectedObjectForDragRef.current = null;
-        controlsRef.current.enabled = true;
+        if (selectedObjectForDragRef.current) {
+            controlsRef.current.enabled = true;
+            selectedObjectForDragRef.current = null;
+        }
+
         document.body.style.cursor = 'default';
         isDraggingRef.current = false;
 
@@ -839,11 +862,11 @@ export function PCBuilder3D() {
 
         setSelectedComponent(prevSelected => {
             if (prevSelected) {
-                prevSelected.traverse(child => removeOutline(child));
+                removeOutline(prevSelected);
             }
             // If we clicked a new object, select it.
             if (clickedObject && clickedObject !== prevSelected) {
-                clickedObject.traverse(child => applyOutline(child));
+                applyOutline(clickedObject);
                 return clickedObject;
             }
             // If we clicked the same object or empty space, deselect.
@@ -971,7 +994,7 @@ export function PCBuilder3D() {
             setConnectionDialogOpen(isOpen);
             if (!isOpen && selectedComponent) {
                 // If closing dialog, deselect component
-                selectedComponent.traverse(child => removeOutline(child));
+                removeOutline(selectedComponent);
                 setSelectedComponent(null);
             }
         }}
@@ -998,5 +1021,3 @@ export function PCBuilder3D() {
     </div>
   );
 }
-
-    
