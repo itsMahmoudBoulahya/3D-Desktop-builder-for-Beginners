@@ -27,38 +27,60 @@ export function ConnectionDialog({
   if (!device) return null;
 
   const getAvailablePorts = () => {
+    const deviceType = device.userData.type;
+
     // For the power strip itself, it connects to the wall
-    if (device.userData.type === 'power') { 
-      return ports.filter(p => p.userData.type === 'wall-power' && p.userData.connectedTo === null);
+    if (deviceType === 'power') {
+      return ports.filter(
+        (p) => p.userData.type === 'wall-power' && p.userData.connectedTo === null
+      );
     }
-    
-    // For devices that need power (monitor, printer, scanner, and now the central-unit)
-    const needsPower = ['monitor', 'printer', 'scanner', 'central-unit'].includes(device.userData.type);
-    const hasDataConnection = ['monitor', 'printer', 'scanner', 'keyboard', 'mouse', 'mic', 'webcam', 'speakers', 'headphones'].includes(device.userData.type);
+
+    // Determine what kind of connections the device needs
+    const needsPower = ['monitor', 'printer', 'scanner', 'central-unit'].includes(deviceType);
+    const needsData = [
+      'monitor', 'keyboard', 'mouse', 'printer', 'mic',
+      'webcam', 'scanner', 'speakers', 'headphones'
+    ].includes(deviceType);
 
     let availablePorts: PortObject[] = [];
 
-    // Check for power ports if needed
+    // Find available power ports if needed
     if (needsPower) {
-       const powerPorts = ports.filter(p => p.userData.type === 'power-strip-outlet' && p.userData.accepts.includes(device.userData.type) && p.userData.connectedTo === null);
-       availablePorts.push(...powerPorts);
+      const powerPorts = ports.filter(
+        (p) =>
+          p.userData.type === 'power-strip-outlet' &&
+          p.userData.accepts.includes(deviceType) &&
+          p.userData.connectedTo === null
+      );
+      availablePorts.push(...powerPorts);
     }
-    
-    // Check for data ports if needed
-    if (hasDataConnection) {
-        if (device.userData.type === 'monitor') {
-            // Special case for monitor: it connects to an HDMI port on the tower
-            const hdmiPorts = ports.filter(p => p.userData.type === 'hdmi' && p.userData.accepts.includes('monitor') && p.userData.connectedTo === null);
-            availablePorts.push(...hdmiPorts);
-        } else {
-            // General case for other peripherals
-            const dataPorts = ports.filter(p => p.userData.accepts.includes(device.userData.type) && p.userData.connectedTo === null && !p.userData.type.includes('power'));
-            availablePorts.push(...dataPorts);
-        }
+
+    // Find available data ports if needed
+    if (needsData) {
+      if (deviceType === 'monitor') {
+        // Monitor connects to HDMI on the tower
+        const hdmiPorts = ports.filter(
+          (p) =>
+            p.userData.type === 'hdmi' &&
+            p.userData.accepts.includes(deviceType) &&
+            p.userData.connectedTo === null
+        );
+        availablePorts.push(...hdmiPorts);
+      } else {
+        // Other peripherals connect to ports that accept their type
+        const dataPorts = ports.filter(
+          (p) =>
+            p.userData.accepts.includes(deviceType) &&
+            !p.userData.type.includes('power') && // Exclude power ports from this check
+            p.userData.connectedTo === null
+        );
+        availablePorts.push(...dataPorts);
+      }
     }
-    
+
     return availablePorts;
-  }
+  };
 
   const availablePorts = getAvailablePorts();
 
