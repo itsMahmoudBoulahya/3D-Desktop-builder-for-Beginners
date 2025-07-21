@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Dialog,
@@ -34,46 +33,43 @@ export function ConnectionDialog({
   const getAvailablePorts = () => {
     if (!device) return [];
 
-    const deviceType = device.userData.type;
     const deviceNeeds = device.userData.needs;
     const existingConnections = connections.get(device.name) || [];
-
+    
     const hasPowerConnection = existingConnections.some(c => c.connectionType === 'power');
-    const dataConnections = existingConnections.filter(c => c.connectionType === 'data');
+    const connectedDataTypes = existingConnections
+      .filter(c => c.connectionType === 'data')
+      .map(c => {
+        const connectedPort = ports.find(p => p.name === c.toPortId);
+        return connectedPort?.userData.type;
+      })
+      .filter(Boolean);
 
     return ports.filter(port => {
-      // Port is already occupied by another device
+      // Port is already occupied
       if (port.userData.connectedTo && port.userData.connectedTo !== device.name) {
         return false;
       }
-      // Port is already connected to this device with the same connection type
-      const isAlreadyConnected = existingConnections.some(c => c.toPortId === port.name && c.connectionType === port.userData.connectionType);
-      if(isAlreadyConnected) return false;
       
-      // Check if the port accepts the device type
-      const portAcceptsDevice = port.userData.accepts.includes(deviceType);
+      const portAcceptsDevice = port.userData.accepts.includes(device.userData.type);
       if (!portAcceptsDevice) {
         return false;
       }
-
-      // Logic for power connections
-      if (deviceNeeds.power && !hasPowerConnection && port.userData.connectionType === 'power') {
-        return true;
-      }
       
-      // Logic for data connections
-      if (deviceNeeds.data && port.userData.connectionType === 'data') {
+      // Power connection logic
+      if (port.userData.connectionType === 'power') {
+        return deviceNeeds.power && !hasPowerConnection;
+      }
+
+      // Data connection logic
+      if (port.userData.connectionType === 'data') {
+        if (!deviceNeeds.data) return false;
+
         const requiredDataTypes = Array.isArray(deviceNeeds.dataType) ? deviceNeeds.dataType : [deviceNeeds.dataType];
-        
-        // Check if the port's data type is one of the required types
-        if (requiredDataTypes.includes(port.userData.type)) {
-            // Check if a connection for this specific data type already exists
-            const hasDataConnectionForType = dataConnections.some(c => {
-                const connectedPort = ports.find(p => p.name === c.toPortId);
-                return connectedPort?.userData.type === port.userData.type;
-            });
-            return !hasDataConnectionForType;
-        }
+        const portType = port.userData.type;
+
+        // Check if the port's data type is needed and not already connected
+        return requiredDataTypes.includes(portType) && !connectedDataTypes.includes(portType);
       }
 
       return false;
@@ -90,17 +86,17 @@ export function ConnectionDialog({
     if (parent && parent.userData.info) {
         return parent.userData.info.split(': ')[1] || parent.userData.info;
     }
-    if (port.userData.type === 'wall-power') return "Wall";
-    return "Unknown";
+    if (port.userData.type === 'wall-power') return "Mur";
+    return "Inconnu";
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Connect {device.userData.info.split(': ')[1] || device.userData.info}</DialogTitle>
+          <DialogTitle>Connecter {device.userData.info.split(': ')[1] || device.userData.info}</DialogTitle>
           <DialogDescription>
-            Select a port to connect to. This device may require multiple connections.
+            Sélectionnez un port auquel vous connecter. Cet appareil peut nécessiter plusieurs connexions.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-60">
@@ -116,7 +112,7 @@ export function ConnectionDialog({
                 </Button>
                 ))
             ) : (
-                <p className="col-span-2 text-sm text-muted-foreground text-center">No available ports for this device.</p>
+                <p className="col-span-2 text-sm text-muted-foreground text-center">Aucun port disponible pour cet appareil.</p>
             )}
             </div>
         </ScrollArea>

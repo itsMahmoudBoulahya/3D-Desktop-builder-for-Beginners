@@ -432,8 +432,8 @@ export function PCBuilder3D() {
     if (hasConnectionOfType && port.userData.connectionType === 'power') {
         toast({
             variant: 'destructive',
-            title: "Connection already exists",
-            description: `A ${connectionType} connection for this device already exists.`,
+            title: "Connexion déjà existante",
+            description: `Une connexion de type ${connectionType} existe déjà pour cet appareil.`,
         });
         return;
     }
@@ -441,8 +441,8 @@ export function PCBuilder3D() {
     if (port.userData.connectedTo) {
       toast({
             variant: 'destructive',
-            title: "Port is in use",
-            description: `This port is already connected to another device.`,
+            title: "Port utilisé",
+            description: `Ce port est déjà connecté à un autre appareil.`,
         });
         return;
     }
@@ -468,7 +468,7 @@ export function PCBuilder3D() {
     port.userData.connectedTo = object.name;
     
     if (isCorrect) {
-        toast({ title: "Connection Successful!", description: `${object.userData.info.split(': ')[1] || object.userData.info} connected to ${port.name.replace(/-/g, ' ')}.` });
+        toast({ title: "Connexion réussie !", description: `${object.userData.info.split(': ')[1] || object.userData.info} connecté à ${port.name.replace(/-/g, ' ')}.` });
     } else {
         setWrongConnectionAlert({
             open: true,
@@ -495,8 +495,8 @@ export function PCBuilder3D() {
 
     if (draggableObjectsRef.current.find(obj => obj.name === name)) {
       toast({
-        title: 'Component already in scene',
-        description: `The ${info.split(': ')[1] || info} is already in the scene.`,
+        title: 'Composant déjà sur la scène',
+        description: `Le composant ${info.split(': ')[1] || info} est déjà présent.`,
         variant: 'destructive'
       });
       return;
@@ -517,22 +517,22 @@ export function PCBuilder3D() {
     let newComponent: DraggableObject | null = null;
     switch(type) {
       case 'central-unit':
-        const tower = createComponent(name, type, 'Central Unit', [dropPoint.x, DESK_LEVEL + 2.0, dropPoint.z], createTower, {power: true});
-        createPort('usb1', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer'], tower, [-0.7, 1.5, -2.3], 0x0077ff);
-        createPort('usb2', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer'], tower, [-0.4, 1.5, -2.3], 0x0077ff);
-        createPort('usb3', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer'], tower, [-0.7, 1.2, -2.3], 0x0077ff);
-        createPort('usb4', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer'], tower, [-0.4, 1.2, -2.3], 0x0077ff);
+        const tower = createComponent(name, type, 'Unité centrale', [dropPoint.x, DESK_LEVEL + 2.0, dropPoint.z], createTower, {power: true});
+        createPort('usb1', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer', 'mic'], tower, [-0.7, 1.5, -2.3], 0x0077ff);
+        createPort('usb2', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer', 'mic'], tower, [-0.4, 1.5, -2.3], 0x0077ff);
+        createPort('usb3', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer', 'mic'], tower, [-0.7, 1.2, -2.3], 0x0077ff);
+        createPort('usb4', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer', 'mic'], tower, [-0.4, 1.2, -2.3], 0x0077ff);
         createPort('hdmi1', 'hdmi', 'data', ['monitor'], tower, [0.2, 1.5, -2.3], 0xff8c00);
         createPort('audio-out', 'audio-out', 'data', ['headphones', 'speakers'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
         createPort('mic-in', 'mic-in', 'data', ['mic'], tower, [-0.1, -0.5, -2.3], 0xff69b4);
         newComponent = tower;
         break;
-      case 'monitor': newComponent = createComponent(name, type, 'Monitor', [dropPoint.x, DESK_LEVEL + 2.8, dropPoint.z], createMonitor, {power: true, data: true, dataType: 'hdmi'}); break;
-      case 'keyboard': newComponent = createComponent(name, type, 'Input Device: Keyboard', [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createKeyboard, {data: true, dataType: 'usb'}); break;
-      case 'mouse': newComponent = createComponent(name, type, 'Input Device: Mouse', [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createMouse, {data: true, dataType: 'usb'}); break;
-      case 'printer': newComponent = createComponent(name, type, 'Output Device: Printer', [dropPoint.x, DESK_LEVEL + 0.45, dropPoint.z], createPrinter, {power: true, data: true, dataType: 'usb'}); break;
+      case 'monitor': newComponent = createComponent(name, type, 'Périphérique de sortie : Moniteur', [dropPoint.x, DESK_LEVEL + 2.8, dropPoint.z], createMonitor, {power: true, data: true, dataType: 'hdmi'}); break;
+      case 'keyboard': newComponent = createComponent(name, type, 'Périphérique d\'entrée : Clavier', [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createKeyboard, {data: true, dataType: 'usb'}); break;
+      case 'mouse': newComponent = createComponent(name, type, 'Périphérique d\'entrée : Souris', [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createMouse, {data: true, dataType: 'usb'}); break;
+      case 'printer': newComponent = createComponent(name, type, 'Périphérique de sortie : Imprimante', [dropPoint.x, DESK_LEVEL + 0.45, dropPoint.z], createPrinter, {power: true, data: true, dataType: 'usb'}); break;
       case 'power-strip':
-        const powerStrip = createComponent(name, type, 'Power Strip', [dropPoint.x, 0.2, dropPoint.z], createPowerStrip, {power: true});
+        const powerStrip = createComponent(name, type, 'Multiprise', [dropPoint.x, 0.2, dropPoint.z], createPowerStrip, {power: true});
         const powerStripAccepts = ['central-unit', 'monitor', 'printer', 'scanner'];
         createPort('power-strip-1', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [-0.9, 0.21, 0.05], 0x111111);
         createPort('power-strip-2', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [-0.3, 0.21, 0.05], 0x111111);
@@ -540,17 +540,17 @@ export function PCBuilder3D() {
         createPort('power-strip-4', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [0.9, 0.21, 0.05], 0x111111);
         newComponent = powerStrip;
         break;
-      case 'headphones': newComponent = createComponent(name, type, 'Output Device: Headphones', [dropPoint.x, DESK_LEVEL + 0.7, dropPoint.z], createHeadphones, {data: true, dataType: 'audio-out'}); break;
-      case 'mic': newComponent = createComponent(name, type, 'Input Device: Microphone', [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createMicrophone, {data: true, dataType: 'mic-in'}); break;
-      case 'speakers': newComponent = createComponent(name, type, 'Output Device: Speakers', [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createSpeakers, {data: true, dataType: 'audio-out'}); break;
-      case 'webcam': newComponent = createComponent(name, type, 'Input Device: Webcam', [dropPoint.x, DESK_LEVEL + 0.2, dropPoint.z], createWebcam, {data: true, dataType: 'usb'}); break;
-      case 'scanner': newComponent = createComponent(name, type, 'Input Device: Scanner', [dropPoint.x, DESK_LEVEL + 0.175, dropPoint.z], createScanner, {power: true, data: true, dataType: 'usb'}); break;
+      case 'headphones': newComponent = createComponent(name, type, 'Périphérique de sortie : Casque', [dropPoint.x, DESK_LEVEL + 0.7, dropPoint.z], createHeadphones, {data: true, dataType: 'audio-out'}); break;
+      case 'mic': newComponent = createComponent(name, type, 'Périphérique d\'entrée : Microphone', [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createMicrophone, {data: true, dataType: ['mic-in', 'usb']}); break;
+      case 'speakers': newComponent = createComponent(name, type, 'Périphérique de sortie : Haut-parleurs', [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createSpeakers, {data: true, dataType: 'audio-out'}); break;
+      case 'webcam': newComponent = createComponent(name, type, 'Périphérique d\'entrée : Webcam', [dropPoint.x, DESK_LEVEL + 0.2, dropPoint.z], createWebcam, {data: true, dataType: 'usb'}); break;
+      case 'scanner': newComponent = createComponent(name, type, 'Périphérique d\'entrée : Scanner', [dropPoint.x, DESK_LEVEL + 0.175, dropPoint.z], createScanner, {power: true, data: true, dataType: 'usb'}); break;
     }
 
     if(newComponent) {
       draggableObjectsRef.current.push(newComponent);
     }
-  }, [createComponent, createPort, toast]);
+  }, [createComponent, createPort, toast, handleConnection]);
 
   useEffect(() => {
     const handleDragOver = (e: DragEvent) => e.preventDefault();
@@ -610,7 +610,7 @@ export function PCBuilder3D() {
     scene.add(leftWall);
 
     const wallOutletGroup = new THREE.Group();
-    wallOutletGroup.userData = { id: 'wall', info: 'Wall' };
+    wallOutletGroup.userData = { id: 'wall', info: 'Mur' };
     wallOutletGroup.position.set(5, 2, -19.7);
 
     const plate = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.1), new THREE.MeshStandardMaterial({color: 0xffffff}));
@@ -866,8 +866,7 @@ export function PCBuilder3D() {
         }
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [createComponent, createPort, handleConnection, handleDrop]);
 
   const onConnectClick = () => {
     if (selectedComponent) {
@@ -935,8 +934,8 @@ export function PCBuilder3D() {
     setSelectedComponent(null);
     setConnectionDialogOpen(false);
     toast({
-      title: 'Component Deleted',
-      description: `${selectedComponent.userData.info.split(': ')[1] || selectedComponent.userData.info} has been removed.`,
+      title: 'Composant supprimé',
+      description: `Le composant ${selectedComponent.userData.info.split(': ')[1] || selectedComponent.userData.info} a été retiré.`,
     });
   };
 
@@ -954,14 +953,14 @@ export function PCBuilder3D() {
       {selectedComponent && (
           <div className='absolute bottom-5 left-1/2 -translate-x-1/2 bg-card p-4 rounded-lg shadow-2xl border flex flex-col items-center gap-2'>
               <div className='flex items-center gap-4'>
-                <p className='font-semibold text-card-foreground'>Selected: {selectedComponent.userData.info.split(': ')[1] || selectedComponent.userData.info}</p>
-                <Button onClick={onConnectClick}>Connect</Button>
+                <p className='font-semibold text-card-foreground'>Sélectionné : {selectedComponent.userData.info.split(': ')[1] || selectedComponent.userData.info}</p>
+                <Button onClick={onConnectClick}>Connecter</Button>
                 <Button variant="destructive" size="icon" onClick={handleDeleteComponent}>
                     <Trash2 className="h-4 w-4" />
-                    <span className="sr-only">Delete</span>
+                    <span className="sr-only">Supprimer</span>
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">Hold <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-muted border rounded-md">Shift</kbd> to move vertically.</p>
+              <p className="text-xs text-muted-foreground">Maintenez <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-muted border rounded-md">Maj</kbd> pour déplacer verticalement.</p>
           </div>
       )}
       <ConnectionDialog 
@@ -981,9 +980,9 @@ export function PCBuilder3D() {
       <AlertDialog open={wrongConnectionAlert.open} onOpenChange={(open) => setWrongConnectionAlert(prev => ({...prev, open}))}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Incorrect Connection</AlertDialogTitle>
+            <AlertDialogTitle>Connexion incorrecte</AlertDialogTitle>
             <AlertDialogDescription>
-              You cannot connect a {wrongConnectionAlert.deviceType} to a {wrongConnectionAlert.portType} port. Please choose a compatible port.
+              Vous ne pouvez pas connecter un {wrongConnectionAlert.deviceType} à un port {wrongConnectionAlert.portType}. Veuillez choisir un port compatible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

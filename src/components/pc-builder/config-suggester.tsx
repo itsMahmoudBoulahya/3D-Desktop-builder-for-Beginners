@@ -25,7 +25,7 @@ import { ScrollArea } from '../ui/scroll-area';
 
 const FormSchema = z.object({
   activity: z.string().min(3, {
-    message: 'Activity must be at least 3 characters.',
+    message: 'L\'activité doit comporter au moins 3 caractères.',
   }),
 });
 
@@ -50,8 +50,8 @@ export function ConfigSuggester() {
     } else {
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: result.error || 'Failed to get suggestions.',
+        title: 'Erreur',
+        description: result.error || 'Impossible d\'obtenir des suggestions.',
       });
     }
     setLoading(false);
@@ -61,11 +61,11 @@ export function ConfigSuggester() {
     <SidebarGroup>
       <SidebarGroupLabel className="flex items-center gap-2">
         <Wand2 className="h-4 w-4" />
-        Configuration Suggester
+        Suggesteur de Configuration
       </SidebarGroupLabel>
       <div className="p-2">
         <p className="text-sm text-muted-foreground mb-4">
-          Describe an activity to get AI-powered hardware suggestions.
+          Décrivez une activité pour obtenir des suggestions de matériel par IA.
         </p>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -74,9 +74,9 @@ export function ConfigSuggester() {
               name="activity"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Activity</FormLabel>
+                  <FormLabel>Activité</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Competitive gaming" {...field} />
+                    <Input placeholder="ex: Jeu compétitif" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -88,7 +88,7 @@ export function ConfigSuggester() {
               ) : (
                 <Wand2 className="mr-2 h-4 w-4" />
               )}
-              Suggest
+              Suggérer
             </Button>
           </form>
         </Form>
@@ -98,7 +98,7 @@ export function ConfigSuggester() {
             <div className="space-y-4 pr-4">
               <Card>
                 <CardHeader className='p-4'>
-                  <CardTitle className="text-base">Monitor</CardTitle>
+                  <CardTitle className="text-base">Moniteur</CardTitle>
                 </CardHeader>
                 <CardContent className='p-4 pt-0'>
                   <p className="text-sm text-muted-foreground">{suggestion.monitor}</p>
@@ -106,7 +106,7 @@ export function ConfigSuggester() {
               </Card>
               <Card>
                 <CardHeader className='p-4'>
-                  <CardTitle className="text-base">Keyboard</CardTitle>
+                  <CardTitle className="text-base">Clavier</CardTitle>
                 </CardHeader>
                 <CardContent className='p-4 pt-0'>
                   <p className="text-sm text-muted-foreground">{suggestion.keyboard}</p>
@@ -114,7 +114,7 @@ export function ConfigSuggester() {
               </Card>
               <Card>
                 <CardHeader className='p-4'>
-                  <CardTitle className="text-base">Mouse</CardTitle>
+                  <CardTitle className="text-base">Souris</CardTitle>
                 </CardHeader>
                 <CardContent className='p-4 pt-0'>
                   <p className="text-sm text-muted-foreground">{suggestion.mouse}</p>
@@ -122,7 +122,7 @@ export function ConfigSuggester() {
               </Card>
               <Card>
                 <CardHeader className='p-4'>
-                  <CardTitle className="text-base">Other</CardTitle>
+                  <CardTitle className="text-base">Autre</CardTitle>
                 </CardHeader>
                 <CardContent className='p-4 pt-0'>
                   <p className="text-sm text-muted-foreground">{suggestion.other}</p>
