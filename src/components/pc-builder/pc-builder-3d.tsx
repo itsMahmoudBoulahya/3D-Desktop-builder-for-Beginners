@@ -45,11 +45,9 @@ export function PCBuilder3D() {
   const applyOutline = (object: THREE.Object3D) => {
     object.traverse((child) => {
         if (child instanceof THREE.Mesh && child.userData.isSelectable) {
-            // Prevent applying outline if one already exists
             if (child.getObjectByName('outline')) return;
 
             const outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x00aaff, side: THREE.BackSide, transparent: true, opacity: 0.5 });
-            // Create a new mesh from the same geometry, don't clone the mesh itself
             const outlineMesh = new THREE.Mesh(child.geometry, outlineMaterial);
             outlineMesh.scale.multiplyScalar(1.05);
             outlineMesh.name = 'outline';
@@ -66,23 +64,6 @@ export function PCBuilder3D() {
         }
     });
   };
-
-  const createComponent = useCallback((
-    name: string,
-    type: string,
-    info: string,
-    position: [number, number, number],
-    createGeometry: () => THREE.Group,
-    needs: { power?: boolean; data?: boolean, dataType?: string }
-  ): DraggableObject => {
-    const group = createGeometry();
-    group.name = name;
-    group.userData = { id: name, type, info, inScene: true, needs };
-    group.position.set(...position);
-    sceneRef.current.add(group);
-    
-    return group;
-  }, []);
 
   const createTower = () => {
     const group = new THREE.Group();
@@ -253,7 +234,6 @@ export function PCBuilder3D() {
     const group = new THREE.Group();
     const material = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.5, metalness: 0.2 });
   
-    // Headband
     const path = new THREE.CatmullRomCurve3([
         new THREE.Vector3(0, 1.2, 0),
         new THREE.Vector3(0.5, 1.1, 0),
@@ -268,11 +248,10 @@ export function PCBuilder3D() {
     group.add(headband);
 
     const headbandMirror = headband.clone();
-    headbandMirror.userData.isSelectable = false; // Don't select the mirror
+    headbandMirror.userData.isSelectable = false;
     headbandMirror.scale.x = -1;
     group.add(headbandMirror);
   
-    // Earpieces
     const earpieceGeo = new THREE.CylinderGeometry(0.4, 0.3, 0.3, 32);
     const earpieceLeft = new THREE.Mesh(earpieceGeo, material);
     earpieceLeft.rotation.z = Math.PI / 2;
@@ -345,8 +324,6 @@ export function PCBuilder3D() {
 
     const speaker2 = speaker1.clone();
     speaker2.position.x = 0.6;
-    // We only want the main body to be selectable, but the clone will have it too.
-    // So we iterate and disable it.
     speaker2.traverse(child => {
         if (child instanceof THREE.Mesh && child.userData.isSelectable) {
             child.userData.isSelectable = false;
@@ -416,6 +393,23 @@ export function PCBuilder3D() {
     parent.add(port);
     portsRef.current.push(port);
   }, []);
+
+  const createComponent = useCallback((
+    name: string,
+    type: string,
+    info: string,
+    position: [number, number, number],
+    createGeometry: () => THREE.Group,
+    needs: { power?: boolean; data?: boolean, dataType?: string }
+  ): DraggableObject => {
+    const group = createGeometry();
+    group.name = name;
+    group.userData = { id: name, type, info, inScene: true, needs };
+    group.position.set(...position);
+    sceneRef.current.add(group);
+    
+    return group;
+  }, []);
   
   const handleConnection = useCallback((portId: string, connectionType: 'power' | 'data' | string) => {
     if (!selectedComponent) return;
@@ -427,19 +421,9 @@ export function PCBuilder3D() {
 
     const existingConnections = connectionsRef.current.get(object.name) || [];
     
-    const hasConnectionOfType = existingConnections.some(c => {
-      // For data, we might have multiple types (e.g. printer needs USB, monitor needs HDMI).
-      // This is a simplified check. A more robust system would check data *sub-types*.
-      if (connectionType === 'data' && c.connectionType === 'data') {
-        const portTheDeviceIsConnectedTo = portsRef.current.find(p => p.name === c.toPortId);
-        // This logic prevents connecting e.g. a monitor to both HDMI and another data port if it only needs one.
-        // And for a printer, it allows connecting to USB but not another data port after.
-        return portTheDeviceIsConnectedTo?.userData.type === object.userData.needs.dataType
-      }
-      return c.connectionType === connectionType;
-    });
+    const hasConnectionOfType = existingConnections.some(c => c.connectionType === connectionType);
 
-    if (hasConnectionOfType) {
+    if (hasConnectionOfType && connectionType !== 'data') {
         toast({
             variant: 'destructive',
             title: "Connection already exists",
@@ -506,7 +490,6 @@ export function PCBuilder3D() {
       
       const {type, name, info} = JSON.parse(componentData);
 
-      // Avoid adding duplicates
       if (draggableObjectsRef.current.find(obj => obj.name === name)) {
         toast({
           title: 'Component already in scene',
@@ -575,11 +558,11 @@ export function PCBuilder3D() {
       mountEl?.removeEventListener('drop', handleDrop);
     }
 
-  }, [createComponent, toast]);
+  }, [createComponent, createPort, toast]);
 
   useEffect(() => {
     const scene = sceneRef.current;
-    scene.background = new THREE.Color(0x87CEEB); // Sky blue background
+    scene.background = new THREE.Color(0x87CEEB); 
 
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
     camera.position.set(0, 8, 10);
@@ -594,7 +577,7 @@ export function PCBuilder3D() {
 
     controlsRef.current = new OrbitControls(camera, renderer.domElement);
     controlsRef.current.enableDamping = true;
-    controlsRef.current.maxPolarAngle = Math.PI / 2 - 0.05; // Prevent looking below the floor
+    controlsRef.current.maxPolarAngle = Math.PI / 2 - 0.05;
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambientLight);
@@ -603,16 +586,14 @@ export function PCBuilder3D() {
     directionalLight.castShadow = true;
     scene.add(directionalLight);
 
-    // Office Floor
-    const floorMaterial = new THREE.MeshStandardMaterial({ color: 0xDEB887 }); // BurlyWood
+    const floorMaterial = new THREE.MeshStandardMaterial({ color: 0xDEB887 });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), floorMaterial);
     floor.name = 'ground';
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     scene.add(floor);
 
-    // Office Walls
-    const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xF5F5DC }); // Beige
+    const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xF5F5DC });
     const backWall = new THREE.Mesh(new THREE.BoxGeometry(40, 20, 0.5), wallMaterial);
     backWall.position.set(0, 10, -20);
     backWall.receiveShadow = true;
@@ -623,7 +604,6 @@ export function PCBuilder3D() {
     leftWall.receiveShadow = true;
     scene.add(leftWall);
 
-    // Wall Outlet as a "port"
     const wallOutletGroup = new THREE.Group();
     wallOutletGroup.userData = { id: 'wall', info: 'Wall' };
     wallOutletGroup.position.set(5, 2, -19.7);
@@ -661,11 +641,9 @@ export function PCBuilder3D() {
     scene.add(wallOutletGroup);
     createPort('wall-outlet', 'wall-power', 'power', ['power-strip'], wallOutletGroup, [0, 0, 0.1], 0x111111);
 
-
-    // Office Desk
     const deskGroup = new THREE.Group();
-    const tabletopMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 }); // SaddleBrown
-    const legMaterial = new THREE.MeshStandardMaterial({ color: 0x696969, metalness: 0.8, roughness: 0.4 }); // DimGray
+    const tabletopMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 });
+    const legMaterial = new THREE.MeshStandardMaterial({ color: 0x696969, metalness: 0.8, roughness: 0.4 });
     
     const tabletop = new THREE.Mesh(new THREE.BoxGeometry(12, 0.3, 6), tabletopMaterial);
     tabletop.position.y = DESK_LEVEL;
@@ -741,13 +719,11 @@ export function PCBuilder3D() {
         if(selectedObjectForDragRef.current) {
             isDraggingRef.current = true;
 
-            // Vertical movement
             if (event.shiftKey) {
                 const currentY = selectedObjectForDragRef.current.position.y;
-                // The sensitivity factor (e.g., 0.05) might need tweaking
                 const newY = currentY - event.movementY * 0.05;
                 selectedObjectForDragRef.current.position.y = newY;
-            } else { // Horizontal movement
+            } else { 
                 if (raycasterRef.current.ray.intersectPlane(planeRef.current, intersectionRef.current)) {
                     selectedObjectForDragRef.current.position.set(
                         intersectionRef.current.x - offsetRef.current.x,
@@ -782,9 +758,8 @@ export function PCBuilder3D() {
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      // Only handle left clicks on the canvas
       if(event.button !== 0 || !cameraRef.current || (event.target as HTMLElement).tagName !== 'CANVAS') return;
-      if (selectedObjectForDragRef.current) return; // Prevent new drag if one is in progress
+      if (selectedObjectForDragRef.current) return; 
       
       event.preventDefault();
       isDraggingRef.current = false;
@@ -829,12 +804,10 @@ export function PCBuilder3D() {
         document.body.style.cursor = 'default';
         isDraggingRef.current = false;
 
-        // If it was a drag, don't process as a click
         if (wasDragging) {
             return;
         }
         
-        // Only handle clicks on the canvas, ignore UI elements
         const target = event.target as HTMLElement;
         if (target !== rendererRef.current?.domElement) {
             return;
@@ -859,12 +832,10 @@ export function PCBuilder3D() {
             if (prevSelected) {
                 removeOutline(prevSelected);
             }
-            // If we clicked a new object, select it.
             if (clickedObject && clickedObject !== prevSelected) {
                 applyOutline(clickedObject);
                 return clickedObject;
             }
-            // If we clicked the same object or empty space, deselect.
             setConnectionDialogOpen(false);
             return null;
         });
@@ -903,7 +874,6 @@ export function PCBuilder3D() {
 
     const objectId = selectedComponent.name;
 
-    // Remove connection lines
     const objectConnections = connectionsRef.current.get(objectId);
     if (objectConnections) {
       objectConnections.forEach(conn => {
@@ -916,15 +886,9 @@ export function PCBuilder3D() {
       connectionsRef.current.delete(objectId);
     }
     
-    // Also remove lines connected TO this object
     connectionsRef.current.forEach((connections, otherObjectId) => {
         const remainingConnections = connections.filter(conn => {
             const port = portsRef.current.find(p => p.name === conn.toPortId);
-            if (port && port.parent?.name === objectId) {
-                sceneRef.current.remove(conn.line);
-                return false; // remove this connection
-            }
-            // Check if the port this connection goes to belongs to the object being deleted
             let portParent = port?.parent;
             let found = false;
             while(portParent) {
@@ -947,7 +911,6 @@ export function PCBuilder3D() {
         }
     });
 
-    // Remove ports belonging to the object
     portsRef.current = portsRef.current.filter(p => {
       let parent = p.parent;
       while(parent) {
@@ -959,13 +922,10 @@ export function PCBuilder3D() {
       return true;
     });
 
-    // Remove the object from the scene
     sceneRef.current.remove(selectedComponent);
 
-    // Remove the object from the draggable objects array
     draggableObjectsRef.current = draggableObjectsRef.current.filter(obj => obj.name !== objectId);
 
-    // Deselect the component
     setSelectedComponent(null);
     setConnectionDialogOpen(false);
     toast({
@@ -1003,7 +963,6 @@ export function PCBuilder3D() {
         onOpenChange={(isOpen) => {
             setConnectionDialogOpen(isOpen);
             if (!isOpen && selectedComponent) {
-                // If closing dialog, deselect component
                 removeOutline(selectedComponent);
                 setSelectedComponent(null);
             }
@@ -1031,3 +990,5 @@ export function PCBuilder3D() {
     </div>
   );
 }
+
+    
