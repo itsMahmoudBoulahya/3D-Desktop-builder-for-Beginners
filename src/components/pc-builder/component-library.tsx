@@ -26,13 +26,19 @@ const componentCategories = {
     ],
   },
   processing: {
-    label: 'Traitement & Alimentation',
+    label: 'Traitement & Stockage',
     icon: <Server className="h-4 w-4" />,
     components: [
       { name: 'central-unit', type: 'central-unit', info: 'Unité centrale', icon: <Cpu className="h-6 w-6" /> },
-      { name: 'power-strip', type: 'power-strip', info: 'Multiprise', icon: <Zap className="h-6 w-6" /> },
     ],
   },
+  others: {
+    label: 'Autres',
+    icon: <Zap className="h-4 w-4" />,
+    components: [
+      { name: 'power-strip', type: 'power-strip', info: 'Multiprise', icon: <Zap className="h-6 w-6" /> },
+    ],
+  }
 };
 
 export function ComponentLibrary() {
