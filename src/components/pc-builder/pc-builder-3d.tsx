@@ -786,58 +786,53 @@ export function PCBuilder3D() {
     };
     
     const onPointerUp = (event: PointerEvent) => {
-        // Prevent click logic from firing if interacting with UI
-        if (event.target !== rendererRef.current?.domElement) {
-            controlsRef.current.enabled = true;
-            selectedObjectForDragRef.current = null;
-            document.body.style.cursor = 'default';
-            return;
-        }
-
-        if(isDraggingRef.current) {
-            isDraggingRef.current = false;
-        } else {
-            raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-            const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene);
-            const intersects = raycasterRef.current.intersectObjects(objectsToIntersect, true);
-    
-            let clickedObject: DraggableObject | null = null;
-            if (intersects.length > 0) {
-                let parentGroup = intersects[0].object.parent;
-                while (parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
-                    parentGroup = parentGroup.parent;
-                }
-                if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
-                    clickedObject = parentGroup as DraggableObject;
-                }
-            }
-
-            setSelectedComponent(prevSelected => {
-                if (prevSelected) {
-                    prevSelected.traverse(child => removeOutline(child));
-                }
-                if(clickedObject && prevSelected && clickedObject.userData.id === prevSelected.userData.id) {
-                    // Clicking the same object again should not close the dialog
-                    if (clickedObject) {
-                       clickedObject.traverse(child => applyOutline(child));
-                    }
-                    return clickedObject;
-                }
-
-                if (clickedObject) {
-                    clickedObject.traverse(child => applyOutline(child));
-                    setConnectionDialogOpen(false); // Close dialog when selecting a new object
-                    return clickedObject;
-                }
-                
-                setConnectionDialogOpen(false); // Close dialog if clicking elsewhere
-                return null;
-            });
-        }
+        const isDrag = isDraggingRef.current;
+        isDraggingRef.current = false;
         
         controlsRef.current.enabled = true;
         selectedObjectForDragRef.current = null;
         document.body.style.cursor = 'default';
+
+        if (isDrag) {
+            return;
+        }
+
+        // Only handle clicks on the canvas, ignore UI elements
+        if (event.target !== rendererRef.current?.domElement) {
+            return;
+        }
+
+        raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current!);
+        const objectsToIntersect = draggableObjectsRef.current.filter(o => o.userData.inScene);
+        const intersects = raycasterRef.current.intersectObjects(objectsToIntersect, true);
+
+        let clickedObject: DraggableObject | null = null;
+        if (intersects.length > 0) {
+            let parentGroup = intersects[0].object.parent;
+            while (parentGroup && !(parentGroup instanceof THREE.Group && parentGroup.userData.id)) {
+                parentGroup = parentGroup.parent;
+            }
+            if (parentGroup && draggableObjectsRef.current.includes(parentGroup as DraggableObject)) {
+                clickedObject = parentGroup as DraggableObject;
+            }
+        }
+
+        setSelectedComponent(prevSelected => {
+            if (prevSelected) {
+                prevSelected.traverse(child => removeOutline(child));
+            }
+
+            if (clickedObject && (!prevSelected || clickedObject.userData.id !== prevSelected.userData.id)) {
+                // A new object is selected
+                clickedObject.traverse(child => applyOutline(child));
+                setConnectionDialogOpen(false); // Close dialog if switching objects
+                return clickedObject;
+            }
+            
+            // If the same object is clicked again or nothing is clicked
+            // setConnectionDialogOpen(false); // This was closing the dialog on second click
+            return null;
+        });
     };
 
     const currentMount = mountRef.current;
@@ -863,7 +858,9 @@ export function PCBuilder3D() {
   }, [createComponent, createPort, handleConnection, toast]);
 
   const onConnectClick = () => {
-    setConnectionDialogOpen(true);
+    if (selectedComponent) {
+      setConnectionDialogOpen(true);
+    }
   }
 
   return (
@@ -885,7 +882,13 @@ export function PCBuilder3D() {
       )}
       <ConnectionDialog 
         isOpen={isConnectionDialogOpen}
-        onOpenChange={setConnectionDialogOpen}
+        onOpenChange={(isOpen) => {
+            setConnectionDialogOpen(isOpen);
+            if (!isOpen) {
+                // If closing dialog, keep component selected
+                // But if user clicks elsewhere, it will deselect
+            }
+        }}
         device={selectedComponent}
         ports={portsRef.current}
         onConnect={handleConnection}
