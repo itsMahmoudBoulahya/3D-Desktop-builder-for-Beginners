@@ -5,23 +5,38 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import { useSorting } from './sorting-context';
+import type { Component, Category } from './sorting-context';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 type DraggableComponentProps = {
   component: Component;
   onDragStart: (e: React.DragEvent, component: Component) => void;
   draggable: boolean;
+  isUnsorted?: boolean;
 };
 
-const DraggableComponent = ({ component, onDragStart, draggable: isDraggable }: DraggableComponentProps) => {
-  const { results } = useSorting();
+const categoryLabels: Record<Exclude<Category, 'unsorted'>, string> = {
+  input: "Périphériques d'entrée",
+  output: "Périphériques de sortie",
+  processing: "Traitement & Stockage",
+  others: "Autres",
+};
+
+
+const DraggableComponent = ({ component, onDragStart, draggable: isDraggable, isUnsorted = false }: DraggableComponentProps) => {
+  const { results, setPlacements } = useSorting();
   const result = results[component.id];
 
-  return (
+  const handleSelectCategory = (category: Exclude<Category, 'unsorted'>) => {
+    setPlacements(prev => ({ ...prev, [component.id]: category }));
+  }
+
+  const componentDiv = (
     <div
       draggable={isDraggable}
       onDragStart={(e) => onDragStart(e, component)}
       className={cn(
-        "flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors",
+        "flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors h-full",
         isDraggable ? "cursor-grab active:cursor-grabbing" : "cursor-not-allowed opacity-50",
         result === 'correct' && 'border-green-500 bg-green-500/10',
         result === 'incorrect' && 'border-red-500 bg-red-500/10'
@@ -31,6 +46,25 @@ const DraggableComponent = ({ component, onDragStart, draggable: isDraggable }: 
       <span className="mt-2 text-xs text-center">{component.name}</span>
     </div>
   );
+
+  if (isUnsorted) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild onContextMenu={(e) => e.preventDefault()}>
+          {componentDiv}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          {Object.entries(categoryLabels).map(([category, label]) => (
+            <DropdownMenuItem key={category} onSelect={() => handleSelectCategory(category as Exclude<Category, 'unsorted'>)}>
+              Placer dans : {label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+  }
+
+  return componentDiv;
 };
 
 
@@ -70,14 +104,14 @@ export function ComponentLibrary() {
       const category = placements[component.id] || 'unsorted';
       acc[category].push(component);
       return acc;
-    }, { unsorted: [], input: [], output: [], processing: [], others: [] } as Record<Category, Component[]>);
+    }, { unsorted: [], input: [], output: [], processing: [], others: [] } as Record<Category | 'unsorted', Component[]>);
   }, [placements, allComponents]);
 
   const isTestComplete = useMemo(() => {
     return Object.values(results).length > 0 && Object.values(results).every(r => r === 'correct');
   }, [results]);
 
-  const categoryConfig = {
+  const categoryConfig: Record<Exclude<Category, 'unsorted'>, { label: string; icon: React.ReactNode; components: Component[] }> = {
     input: { label: "Périphériques d'entrée", icon: <ArrowDownToLine className="h-4 w-4" />, components: input },
     output: { label: 'Périphériques de sortie', icon: <ArrowUpFromLine className="h-4 w-4" />, components: output },
     processing: { label: 'Traitement & Stockage', icon: <Server className="h-4 w-4" />, components: processing },
@@ -91,10 +125,16 @@ export function ComponentLibrary() {
           <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2 pl-1"><HelpCircle className="h-4 w-4" />Composants non triés</h3>
           <div className="grid grid-cols-3 gap-2">
             {unsorted.map(c => 
-              <DraggableComponent key={c.id} component={c} onDragStart={(e) => handleComponentDragStart(e, c)} draggable={true} />
+              <DraggableComponent 
+                key={c.id} 
+                component={c} 
+                onDragStart={(e) => handleComponentDragStart(e, c)} 
+                draggable={true} 
+                isUnsorted={true}
+              />
             )}
           </div>
-          {unsorted.length === 0 && <p className="text-xs text-muted-foreground p-4 text-center w-full">Tous les composants ont été triés !</p>}
+          {unsorted.length === 0 && <p className="text-xs text-muted-foreground p-4 text-center w-full">Tous les composants ont été triés ! Glissez-les sur la scène 3D pour commencer à construire.</p>}
         </div>
 
         <Accordion type="multiple" className="w-full" defaultValue={Object.keys(categoryConfig)}>
@@ -113,7 +153,7 @@ export function ComponentLibrary() {
                       key={c.id} 
                       component={c} 
                       onDragStart={(e) => handleComponentDragStart(e, c)}
-                      draggable={isTestComplete || results[c.id] === 'correct'}
+                      draggable={!isTestComplete && results[c.id] !== 'correct'}
                     />
                   )}
                 </DropZone>
