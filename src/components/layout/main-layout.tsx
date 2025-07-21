@@ -32,10 +32,10 @@ export function MainLayout() {
           </div>
         </SidebarHeader>
         <SidebarContent className="p-0">
-          <SidebarGroup>
-            <SidebarGroupLabel className='flex items-center gap-2'>
+          <SidebarGroup className='p-0'>
+            <SidebarGroupLabel className='flex items-center gap-2 px-2'>
               <HardDrive className='h-4 w-4' />
-              Component Library
+              Bibliothèque de composants
             </SidebarGroupLabel>
             <ComponentLibrary />
           </SidebarGroup>
