@@ -1,6 +1,6 @@
 
 import React, { useMemo } from 'react';
-import { Monitor, Keyboard, Mouse, Printer, Zap, Headphones, Mic, Speaker, Camera, Scan, Cpu, ArrowDownToLine, ArrowUpFromLine, Server, HelpCircle, RotateCcw } from 'lucide-react';
+import { Monitor, Keyboard, Mouse, Printer, Zap, Headphones, Mic, Speaker, Camera, Scan, Cpu, ArrowDownToLine, ArrowUpFromLine, Server, HelpCircle, RotateCcw, X } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
@@ -33,19 +33,34 @@ const DraggableComponent = ({ component, onDragStart, draggable: isDraggable, is
     setPlacements(prev => ({ ...prev, [component.id]: category }));
   }
 
+  const handleRemove = () => {
+    setPlacements(prev => ({ ...prev, [component.id]: 'unsorted' }));
+  }
+
   const componentDiv = (
-    <div
-      draggable={isDraggable}
-      onDragStart={(e) => onDragStart(e, component)}
-      className={cn(
-        "flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors h-full",
-        isDraggable ? "cursor-grab active:cursor-grabbing" : "cursor-not-allowed opacity-50",
-        result === 'correct' && 'border-green-500 bg-green-500/10',
-        result === 'incorrect' && 'border-red-500 bg-red-500/10'
+    <div className="relative group">
+      <div
+        draggable={isDraggable}
+        onDragStart={(e) => onDragStart(e, component)}
+        className={cn(
+          "flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors h-full",
+          isDraggable ? "cursor-grab active:cursor-grabbing" : "cursor-not-allowed opacity-50",
+          result === 'correct' && 'border-green-500 bg-green-500/10',
+          result === 'incorrect' && 'border-red-500 bg-red-500/10'
+        )}
+      >
+        {component.icon}
+        <span className="mt-2 text-xs text-center">{component.name}</span>
+      </div>
+      {!isUnsorted && (
+        <button
+          onClick={handleRemove}
+          className="absolute top-1 right-1 p-0.5 bg-background/50 rounded-full text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-opacity"
+          aria-label={`Retirer ${component.name}`}
+        >
+          <X className="h-3 w-3" />
+        </button>
       )}
-    >
-      {component.icon}
-      <span className="mt-2 text-xs text-center">{component.name}</span>
     </div>
   );
 
