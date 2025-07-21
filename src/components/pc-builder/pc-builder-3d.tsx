@@ -21,6 +21,8 @@ export function PCBuilder3D() {
   
   const [tooltip, setTooltip] = useState<{ content: string; x: number; y: number } | null>(null);
   const [selectedComponent, setSelectedComponent] = useState<DraggableObject | null>(null);
+  const selectedComponentRef = useRef<DraggableObject | null>(null);
+
   const [isConnectionDialogOpen, setConnectionDialogOpen] = useState(false);
   const [wrongConnectionAlert, setWrongConnectionAlert] = useState<{ open: boolean, portType: string, deviceType: string }>({ open: false, portType: '', deviceType: '' });
 
@@ -42,9 +44,13 @@ export function PCBuilder3D() {
   const offsetRef = useRef(new THREE.Vector3());
   const isDraggingRef = useRef(false);
 
+  useEffect(() => {
+    selectedComponentRef.current = selectedComponent;
+  }, [selectedComponent]);
+
   const applyOutline = (object: THREE.Object3D) => {
     object.traverse((child) => {
-        if (child instanceof THREE.Mesh && child.userData.isSelectable) {
+        if (child instanceof THREE.Mesh && child.name === 'body') {
             if (child.getObjectByName('outline')) return;
 
             const outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x00aaff, side: THREE.BackSide, transparent: true, opacity: 0.5 });
@@ -106,7 +112,7 @@ export function PCBuilder3D() {
     
     const frame = new THREE.Mesh(new THREE.BoxGeometry(4.5, 3.5, 0.3), frameMaterial);
     frame.userData.isSelectable = true;
-    frame.name = "frame";
+    frame.name = "body";
     group.add(frame);
     
     const standNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 16), frameMaterial);
@@ -412,9 +418,9 @@ export function PCBuilder3D() {
   }, []);
   
   const handleConnection = useCallback((portId: string, connectionType: 'power' | 'data' | string) => {
-    if (!selectedComponent) return;
+    const object = selectedComponentRef.current;
+    if (!object) return;
 
-    const object = selectedComponent;
     const port = portsRef.current.find(p => p.name === portId);
 
     if (!object || !port) return;
@@ -477,7 +483,7 @@ export function PCBuilder3D() {
         }, 500);
     }
     setConnectionDialogOpen(false);
-  }, [selectedComponent, toast]);
+  }, [toast, setWrongConnectionAlert]);
   
   // Drag and drop from sidebar
   useEffect(() => {
@@ -861,7 +867,8 @@ export function PCBuilder3D() {
         }
       }
     };
-  }, [createComponent, createPort, handleConnection, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onConnectClick = () => {
     if (selectedComponent) {
@@ -990,5 +997,3 @@ export function PCBuilder3D() {
     </div>
   );
 }
-
-    
