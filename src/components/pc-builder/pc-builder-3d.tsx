@@ -60,11 +60,9 @@ export function PCBuilder3D() {
 
   const removeOutline = (object: THREE.Object3D) => {
     object.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-            const outline = child.getObjectByName('outline');
-            if (outline) {
-                child.remove(outline);
-            }
+        const outline = child.getObjectByName('outline');
+        if (outline) {
+            child.remove(outline);
         }
     });
   };
@@ -428,7 +426,18 @@ export function PCBuilder3D() {
     if (!object || !port) return;
 
     const existingConnections = connectionsRef.current.get(object.name) || [];
-    const hasConnectionOfType = existingConnections.some(c => c.connectionType === connectionType);
+    
+    const hasConnectionOfType = existingConnections.some(c => {
+      // For data, we might have multiple types (e.g. printer needs USB, monitor needs HDMI).
+      // This is a simplified check. A more robust system would check data *sub-types*.
+      if (connectionType === 'data' && c.connectionType === 'data') {
+        const portTheDeviceIsConnectedTo = portsRef.current.find(p => p.name === c.toPortId);
+        // This logic prevents connecting e.g. a monitor to both HDMI and another data port if it only needs one.
+        // And for a printer, it allows connecting to USB but not another data port after.
+        return portTheDeviceIsConnectedTo?.userData.type === object.userData.needs.dataType
+      }
+      return c.connectionType === connectionType;
+    });
 
     if (hasConnectionOfType) {
         toast({
@@ -521,11 +530,30 @@ export function PCBuilder3D() {
 
       let newComponent: DraggableObject | null = null;
       switch(type) {
+        case 'central-unit':
+          const tower = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 2.0, dropPoint.z], createTower, {power: true});
+          createPort('usb1', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer'], tower, [-0.7, 1.5, -2.3], 0x0077ff);
+          createPort('usb2', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer'], tower, [-0.4, 1.5, -2.3], 0x0077ff);
+          createPort('usb3', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer'], tower, [-0.7, 1.2, -2.3], 0x0077ff);
+          createPort('usb4', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer'], tower, [-0.4, 1.2, -2.3], 0x0077ff);
+          createPort('hdmi1', 'hdmi', 'data', ['monitor'], tower, [0.2, 1.5, -2.3], 0xff8c00);
+          createPort('audio-out', 'audio-out', 'data', ['headphones', 'speakers'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
+          createPort('mic-in', 'mic-in', 'data', ['mic'], tower, [-0.1, -0.5, -2.3], 0xff69b4);
+          newComponent = tower;
+          break;
         case 'monitor': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 2.8, dropPoint.z], createMonitor, {power: true, data: true, dataType: 'hdmi'}); break;
         case 'keyboard': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createKeyboard, {data: true, dataType: 'usb'}); break;
         case 'mouse': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.08, dropPoint.z], createMouse, {data: true, dataType: 'usb'}); break;
         case 'printer': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.45, dropPoint.z], createPrinter, {power: true, data: true, dataType: 'usb'}); break;
-        case 'power-strip': newComponent = createComponent(name, 'power-strip', info, [dropPoint.x, DESK_LEVEL + 0.16, dropPoint.z], createPowerStrip, {power: true}); break;
+        case 'power-strip':
+          const powerStrip = createComponent(name, type, info, [dropPoint.x, 0.2, dropPoint.z], createPowerStrip, {power: true});
+          const powerStripAccepts = ['central-unit', 'monitor', 'printer', 'scanner'];
+          createPort('power-strip-1', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [-0.9, 0.21, 0.05], 0x111111);
+          createPort('power-strip-2', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [-0.3, 0.21, 0.05], 0x111111);
+          createPort('power-strip-3', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [0.3, 0.21, 0.05], 0x111111);
+          createPort('power-strip-4', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [0.9, 0.21, 0.05], 0x111111);
+          newComponent = powerStrip;
+          break;
         case 'headphones': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.7, dropPoint.z], createHeadphones, {data: true, dataType: 'audio-out'}); break;
         case 'mic': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createMicrophone, {data: true, dataType: 'mic-in'}); break;
         case 'speakers': newComponent = createComponent(name, type, info, [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createSpeakers, {data: true, dataType: 'audio-out'}); break;
@@ -659,39 +687,6 @@ export function PCBuilder3D() {
     deskGroup.add(leg4);
     
     scene.add(deskGroup);
-
-    const tower = createComponent('cpu-tower', 'central-unit', 'Central Unit', 
-      [-3, DESK_LEVEL + 2.0, 0],
-      createTower,
-      { power: true }
-    );
-    tower.userData.inScene = true;
-    draggableObjectsRef.current.push(tower);
-    
-    createPort('usb1', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer'], tower, [-0.7, 1.5, -2.3], 0x0077ff);
-    createPort('usb2', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer'], tower, [-0.4, 1.5, -2.3], 0x0077ff);
-    createPort('usb3', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer'], tower, [-0.7, 1.2, -2.3], 0x0077ff);
-    createPort('usb4', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer'], tower, [-0.4, 1.2, -2.3], 0x0077ff);
-    createPort('usb5', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer'], tower, [-0.7, 0.9, -2.3], 0x0077ff);
-    createPort('usb6', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer'], tower, [-0.4, 0.9, -2.3], 0x0077ff);
-    
-    createPort('hdmi1', 'hdmi', 'data', ['monitor'], tower, [0.2, 1.5, -2.3], 0xff8c00);
-    
-    createPort('audio-out', 'audio-out', 'data', ['headphones', 'speakers'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
-    createPort('mic-in', 'mic-in', 'data', ['mic'], tower, [-0.1, -0.5, -2.3], 0xff69b4);
-
-    const powerStrip = createComponent('power-strip', 'power-strip', 'Power Strip', 
-      [3, 0.2, 0],
-      createPowerStrip,
-      { power: true }
-    );
-    powerStrip.userData.inScene = true;
-    draggableObjectsRef.current.push(powerStrip);
-    const powerStripAccepts = ['central-unit', 'monitor', 'printer', 'scanner'];
-    createPort('power-strip-1', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [-0.9, 0.21, 0.05], 0x111111);
-    createPort('power-strip-2', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [-0.3, 0.21, 0.05], 0x111111);
-    createPort('power-strip-3', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [0.3, 0.21, 0.05], 0x111111);
-    createPort('power-strip-4', 'power-strip-outlet', 'power', powerStripAccepts, powerStrip, [0.9, 0.21, 0.05], 0x111111);
 
     const animate = () => {
       if (!rendererRef.current || !cameraRef.current) return;
@@ -906,16 +901,6 @@ export function PCBuilder3D() {
   const handleDeleteComponent = () => {
     if (!selectedComponent) return;
 
-    // Prevent deleting core components
-    if (selectedComponent.name === 'cpu-tower' || selectedComponent.name === 'power-strip') {
-      toast({
-        variant: 'destructive',
-        title: 'Cannot delete core component',
-        description: 'The PC Tower and initial Power Strip cannot be deleted.',
-      });
-      return;
-    }
-
     const objectId = selectedComponent.name;
 
     // Remove connection lines
@@ -937,8 +922,24 @@ export function PCBuilder3D() {
             const port = portsRef.current.find(p => p.name === conn.toPortId);
             if (port && port.parent?.name === objectId) {
                 sceneRef.current.remove(conn.line);
-                return false;
+                return false; // remove this connection
             }
+            // Check if the port this connection goes to belongs to the object being deleted
+            let portParent = port?.parent;
+            let found = false;
+            while(portParent) {
+              if (portParent.name === objectId) {
+                found = true;
+                break;
+              }
+              portParent = portParent.parent;
+            }
+
+            if (found) {
+              sceneRef.current.remove(conn.line);
+              return false;
+            }
+
             return true;
         });
         if(remainingConnections.length !== connections.length) {
@@ -947,7 +948,16 @@ export function PCBuilder3D() {
     });
 
     // Remove ports belonging to the object
-    portsRef.current = portsRef.current.filter(p => p.parent?.name !== objectId);
+    portsRef.current = portsRef.current.filter(p => {
+      let parent = p.parent;
+      while(parent) {
+        if (parent.name === objectId) {
+          return false;
+        }
+        parent = parent.parent;
+      }
+      return true;
+    });
 
     // Remove the object from the scene
     sceneRef.current.remove(selectedComponent);
