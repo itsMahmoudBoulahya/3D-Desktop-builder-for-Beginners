@@ -17,11 +17,13 @@ import { ComponentLibrary } from '../pc-builder/component-library';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SortingTest } from '../pc-builder/sorting-test';
 import { SortingProvider } from '@/components/pc-builder/sorting-context';
+import { SceneProvider } from '@/components/pc-builder/scene-context';
 
 export function MainLayout() {
   return (
     <SortingProvider>
-      <SidebarProvider>
+      <SceneProvider>
+        <SidebarProvider>
         <Sidebar>
           <SidebarHeader>
             <div className="flex items-center gap-2">
@@ -105,6 +107,7 @@ export function MainLayout() {
           </main>
         </SidebarInset>
       </SidebarProvider>
+      </SceneProvider>
     </SortingProvider>
   );
 }

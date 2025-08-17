@@ -1,6 +1,6 @@
 
 import React, { useMemo } from 'react';
-import { Monitor, Keyboard, Mouse, Printer, Zap, Headphones, Mic, Speaker, Camera, Scan, Cpu, ArrowDownToLine, ArrowUpFromLine, Server, HelpCircle, RotateCcw, X } from 'lucide-react';
+import { Monitor, Keyboard, Mouse, Printer, Zap, Headphones, Mic, Speaker, Camera, Scan, Cpu, ArrowDownToLine, ArrowUpFromLine, Server, HelpCircle, RotateCcw, X, Usb } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 
 type DraggableComponentProps = {
   component: Component;
-  onDragStart: (e: React.DragEvent, component: Component) => void;
+  onDragStart: (e: React.DragEvent<HTMLDivElement>, component: Component) => void;
   draggable: boolean;
   isUnsorted?: boolean;
 };
@@ -96,6 +96,7 @@ const DropZone = ({ children, onDrop, onDragOver, isEmpty }: { children: React.R
 );
 
 export function ComponentLibrary() {
+  console.log("ComponentLibrary rendered");
   const { allComponents, placements, setPlacements, results, resetTest } = useSorting();
 
   const handleComponentDragStart = (e: React.DragEvent<HTMLDivElement>, component: Component) => {
@@ -123,6 +124,8 @@ export function ComponentLibrary() {
       return acc;
     }, { unsorted: [], input: [], output: [], processing: [], others: [] } as Record<Category | 'unsorted', Component[]>);
   }, [placements, allComponents]);
+
+  console.log("Unsorted components:", unsorted);
 
   const isTestComplete = useMemo(() => {
     return Object.values(results).length > 0 && Object.values(results).every(r => r === 'correct');
@@ -159,7 +162,7 @@ export function ComponentLibrary() {
               <DraggableComponent 
                 key={c.id} 
                 component={c} 
-                onDragStart={(e) => handleComponentDragStart(e, c)} 
+                onDragStart={(e: React.DragEvent<HTMLDivElement>) => handleComponentDragStart(e, c)} 
                 draggable={!isTestComplete} 
                 isUnsorted={true}
               />
@@ -183,7 +186,7 @@ export function ComponentLibrary() {
                     <DraggableComponent 
                       key={c.id} 
                       component={c} 
-                      onDragStart={(e) => handleComponentDragStart(e, c)}
+                      onDragStart={(e: React.DragEvent<HTMLDivElement>) => handleComponentDragStart(e, c)}
                       draggable={!isTestComplete && results[c.id] !== 'correct'}
                     />
                   )}

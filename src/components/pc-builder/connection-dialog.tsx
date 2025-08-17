@@ -92,9 +92,9 @@ export function ConnectionDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Connecter {device.userData.info.split(': ')[1] || device.userData.info}</DialogTitle>
+          <DialogTitle className="text-lg leading-relaxed">Connecter {device.userData.info.split(': ')[1] || device.userData.info}</DialogTitle>
           <DialogDescription>
             Sélectionnez un port auquel vous connecter. Cet appareil peut nécessiter plusieurs connexions.
           </DialogDescription>
@@ -108,7 +108,7 @@ export function ConnectionDialog({
                     variant="outline"
                     onClick={() => onConnect(port.name, port.userData.connectionType)}
                 >
-                    {port.name.replace(/-/g, ' ').replace(/\d/g, m => ` ${m}`).toUpperCase()} ({getPortParentName(port)})
+                    {port.name.replace(/-/g, ' ').toUpperCase()} ({getPortParentName(port)})
                 </Button>
                 ))
             ) : (

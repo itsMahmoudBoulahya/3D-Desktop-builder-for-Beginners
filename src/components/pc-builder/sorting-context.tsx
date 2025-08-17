@@ -1,8 +1,8 @@
 
 'use client';
 
-import React, { createContext, useState, useContext, useMemo, ReactNode } from 'react';
-import { Monitor, Keyboard, Mouse, Printer, Zap, Headphones, Mic, Speaker, Camera, Scan, Cpu } from 'lucide-react';
+import React, { createContext, useState, useContext, useMemo, ReactNode, useEffect } from 'react';
+import { Monitor, Keyboard, Mouse, Printer, Zap, Headphones, Mic, Speaker, Camera, Scan, Cpu, Usb } from 'lucide-react';
 
 export type Component = {
   id: string;
@@ -27,6 +27,7 @@ const ALL_COMPONENTS: Component[] = [
   { id: 'speakers', name: 'Haut-parleurs', type: 'speakers', info: 'Périphérique de sortie : Haut-parleurs', category: 'output', icon: <Speaker className="h-6 w-6" /> },
   { id: 'central-unit', name: 'Unité centrale', type: 'central-unit', info: 'Unité centrale', category: 'processing', icon: <Cpu className="h-6 w-6" /> },
   { id: 'power-strip', name: 'Multiprise', type: 'power-strip', info: 'Multiprise', category: 'others', icon: <Zap className="h-6 w-6" /> },
+  { id: 'adapter', name: 'Adaptateur (USB x6, HDMI x3)', type: 'adapter', info: 'Adaptateur USB (x6) et HDMI (x3) pour connecter plusieurs périphériques', category: 'others', icon: <Usb className="h-6 w-6" /> },
 ];
 
 type SortingContextType = {

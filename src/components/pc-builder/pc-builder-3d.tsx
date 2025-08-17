@@ -7,6 +7,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Button } from '../ui/button';
 import { ConnectionDialog } from './connection-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useScene } from './scene-context';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { Trash2 } from 'lucide-react';
 
@@ -18,6 +19,7 @@ const DESK_LEVEL = 3.5;
 export function PCBuilder3D() {
   const mountRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { setSceneComponents, setConnections } = useScene();
   
   const [tooltip, setTooltip] = useState<{ content: string; x: number; y: number } | null>(null);
   const [selectedComponent, setSelectedComponent] = useState<DraggableObject | null>(null);
@@ -47,6 +49,25 @@ export function PCBuilder3D() {
   useEffect(() => {
     selectedComponentRef.current = selectedComponent;
   }, [selectedComponent]);
+
+  // Sync scene data with context
+  const syncSceneData = useCallback(() => {
+    // Update scene components
+    const sceneComponentsData = draggableObjectsRef.current.map(obj => ({
+      name: obj.name,
+      userData: {
+        id: obj.userData.id || obj.name,
+        type: obj.userData.type || 'unknown',
+        info: obj.userData.info || obj.name,
+        inScene: obj.userData.inScene || true,
+        needs: obj.userData.needs || {}
+      }
+    }));
+    setSceneComponents(sceneComponentsData);
+    
+    // Update connections
+    setConnections(new Map(connectionsRef.current));
+  }, [setSceneComponents, setConnections]);
 
   const applyOutline = (object: THREE.Object3D) => {
     object.traverse((child) => {
@@ -381,6 +402,49 @@ export function PCBuilder3D() {
     return group;
   }
 
+  const createUsbAdapter = () => {
+    const group = new THREE.Group();
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.6 });
+    const portMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const bluePortInsertMaterial = new THREE.MeshStandardMaterial({ color: 0x0000FF }); // USB 3.0 blue
+
+    const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 0.8), bodyMaterial);
+    mainBody.userData.isSelectable = true;
+    mainBody.name = "body";
+    mainBody.castShadow = true;
+    mainBody.receiveShadow = true;
+    group.add(mainBody);
+
+    const portSpacing = 0.25;
+    const startX = -0.55;
+    const portY = 0.26;
+    const portZ = 0.4;
+
+    for (let i = 0; i < 3; i++) {
+      const portBase = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.1), portMaterial);
+      portBase.position.set(startX + i * portSpacing, portY, portZ);
+      group.add(portBase);
+
+      const portInsert = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.08, 0.05), bluePortInsertMaterial);
+      portInsert.position.set(startX + i * portSpacing, portY, portZ + 0.025);
+      group.add(portInsert);
+    }
+
+    for (let i = 0; i < 3; i++) {
+      const portBase = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.1), portMaterial);
+      portBase.position.set(startX + i * portSpacing, portY - 0.25, portZ);
+      group.add(portBase);
+
+      const portInsert = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.08, 0.05), bluePortInsertMaterial);
+      portInsert.position.set(startX + i * portSpacing, portY - 0.25, portZ + 0.025);
+      group.add(portInsert);
+    }
+
+    group.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+    group.scale.set(0.8, 0.8, 0.8);
+    return group;
+  }
+
   const createPort = useCallback((
     name: string,
     type: string,
@@ -463,7 +527,19 @@ export function PCBuilder3D() {
     line.name = `line_${object.name}_to_${port.name}`;
     sceneRef.current.add(line);
     
-    const newConnection = { line, toPortId: port.name, connectionType };
+    // Resolve the component that owns this port (for graph reasoning)
+    let owner: THREE.Object3D | null = port.parent;
+    while (owner && !(owner instanceof THREE.Group && (owner as any).userData?.id)) {
+      owner = owner.parent;
+    }
+    const ownerGroup = owner as DraggableObject | null;
+    const newConnection = { 
+      line, 
+      toPortId: port.name, 
+      connectionType, 
+      toComponentName: ownerGroup?.name, 
+      toComponentType: ownerGroup?.userData?.type 
+    };
     connectionsRef.current.set(object.name, [...existingConnections, newConnection]);
     port.userData.connectedTo = object.name;
     
@@ -480,10 +556,12 @@ export function PCBuilder3D() {
             const connections = (connectionsRef.current.get(object.name) || []).filter(c => c.line !== line);
             connectionsRef.current.set(object.name, connections);
             port.userData.connectedTo = null;
+            syncSceneData();
         }, 500);
     }
     setConnectionDialogOpen(false);
-  }, [toast, setWrongConnectionAlert]);
+    syncSceneData();
+  }, [toast, setWrongConnectionAlert, syncSceneData]);
   
   // Drag and drop from sidebar
   const handleDrop = useCallback((e: DragEvent) => {
@@ -518,10 +596,10 @@ export function PCBuilder3D() {
     switch(type) {
       case 'central-unit':
         const tower = createComponent(name, type, 'Unité centrale', [dropPoint.x, DESK_LEVEL + 2.0, dropPoint.z], createTower, {power: true});
-        createPort('usb1', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer', 'mic'], tower, [-0.7, 1.5, -2.3], 0x0077ff);
-        createPort('usb2', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer', 'mic'], tower, [-0.4, 1.5, -2.3], 0x0077ff);
-        createPort('usb3', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer', 'mic'], tower, [-0.7, 1.2, -2.3], 0x0077ff);
-        createPort('usb4', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer', 'mic'], tower, [-0.4, 1.2, -2.3], 0x0077ff);
+        createPort('usb1', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer', 'mic', 'adapter'], tower, [-0.7, 1.5, -2.3], 0x0077ff);
+        createPort('usb2', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer', 'mic', 'adapter'], tower, [-0.4, 1.5, -2.3], 0x0077ff);
+        createPort('usb3', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer', 'mic', 'adapter'], tower, [-0.7, 1.2, -2.3], 0x0077ff);
+        createPort('usb4', 'usb', 'data', ['keyboard', 'mouse', 'webcam', 'scanner', 'printer', 'mic', 'adapter'], tower, [-0.4, 1.2, -2.3], 0x0077ff);
         createPort('hdmi1', 'hdmi', 'data', ['monitor'], tower, [0.2, 1.5, -2.3], 0xff8c00);
         createPort('audio-out', 'audio-out', 'data', ['headphones', 'speakers'], tower, [-0.7, -0.5, -2.3], 0x32CD32);
         createPort('mic-in', 'mic-in', 'data', ['mic'], tower, [-0.1, -0.5, -2.3], 0xff69b4);
@@ -545,12 +623,30 @@ export function PCBuilder3D() {
       case 'speakers': newComponent = createComponent(name, type, 'Périphérique de sortie : Haut-parleurs', [dropPoint.x, DESK_LEVEL + 0.6, dropPoint.z], createSpeakers, {data: true, dataType: 'audio-out'}); break;
       case 'webcam': newComponent = createComponent(name, type, 'Périphérique d\'entrée : Webcam', [dropPoint.x, DESK_LEVEL + 0.2, dropPoint.z], createWebcam, {data: true, dataType: 'usb'}); break;
       case 'scanner': newComponent = createComponent(name, type, 'Périphérique d\'entrée : Scanner', [dropPoint.x, DESK_LEVEL + 0.175, dropPoint.z], createScanner, {power: true, data: true, dataType: 'usb'}); break;
+      case 'adapter':
+        const adapter = createComponent(name, type, 'Adaptateur (USB x6, HDMI x3)', [dropPoint.x, DESK_LEVEL + 0.25, dropPoint.z], createUsbAdapter, {data: true, dataType: 'usb'});
+        // USB ports (6)
+        const adapterUsbAccepts = ['keyboard', 'mouse', 'webcam', 'scanner', 'printer', 'mic'];
+        createPort('adapter-port1', 'usb', 'data', adapterUsbAccepts, adapter, [-0.55, 0.26, 0.45], 0x0077ff);
+        createPort('adapter-port2', 'usb', 'data', adapterUsbAccepts, adapter, [-0.3, 0.26, 0.45], 0x0077ff);
+        createPort('adapter-port3', 'usb', 'data', adapterUsbAccepts, adapter, [-0.05, 0.26, 0.45], 0x0077ff);
+        createPort('adapter-port4', 'usb', 'data', adapterUsbAccepts, adapter, [-0.55, 0.01, 0.45], 0x0077ff);
+        createPort('adapter-port5', 'usb', 'data', adapterUsbAccepts, adapter, [-0.3, 0.01, 0.45], 0x0077ff);
+        createPort('adapter-port6', 'usb', 'data', adapterUsbAccepts, adapter, [-0.05, 0.01, 0.45], 0x0077ff);
+        // HDMI ports (3)
+        const adapterHdmiAccepts = ['monitor', 'scanner', 'printer'];
+        createPort('adapter-hdmi1', 'hdmi', 'data', adapterHdmiAccepts, adapter, [0.25, 0.26, 0.45], 0xff8c00);
+        createPort('adapter-hdmi2', 'hdmi', 'data', adapterHdmiAccepts, adapter, [0.5, 0.26, 0.45], 0xff8c00);
+        createPort('adapter-hdmi3', 'hdmi', 'data', adapterHdmiAccepts, adapter, [0.75, 0.26, 0.45], 0xff8c00);
+        newComponent = adapter;
+        break;
     }
 
     if(newComponent) {
       draggableObjectsRef.current.push(newComponent);
+      syncSceneData();
     }
-  }, [createComponent, createPort, toast, handleConnection]);
+  }, [createComponent, createPort, toast, handleConnection, syncSceneData]);
 
   useEffect(() => {
     const handleDragOver = (e: DragEvent) => e.preventDefault();
@@ -933,6 +1029,7 @@ export function PCBuilder3D() {
 
     setSelectedComponent(null);
     setConnectionDialogOpen(false);
+    syncSceneData();
     toast({
       title: 'Composant supprimé',
       description: `Le composant ${selectedComponent.userData.info.split(': ')[1] || selectedComponent.userData.info} a été retiré.`,
